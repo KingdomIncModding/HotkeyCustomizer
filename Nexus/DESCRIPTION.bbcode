@@ -1,0 +1,30 @@
+[size=5][b]Hotkey Customizer[/b][/size]
+
+Add key combinations to vanilla shortcuts and ten user-configurable building shortcuts to Kingdom Inc. Every entry starts Unassigned, and your existing workspace shortcuts stay unchanged.
+
+[b]Features[/b]
+[list]
+[*]Rebind vanilla shortcuts to combinations such as Ctrl + Shift + 1.
+[*]Ten building entries numbered 0-9 in Options > Key Bindings.
+[*]Building dropdowns on the left; vanilla-style key setters on the right.
+[*]Assign your own key, with optional Ctrl, Alt, Shift or Meta modifiers.
+[*]Choose a specific building from a dropdown for each entry.
+[*]Apply saves assignments; Cancel discards edits; Reset clears the pending entries.
+[*]Opens normal building placement with the game's research and cost checks.
+[*]Settings persist across restarts and kingdoms without adding save data.
+[/list]
+
+[b]How to use[/b]
+Open Options > Key Bindings. Click any vanilla key field to assign a combination. For building entries, scroll to Building 0-9, choose a building on the left and assign a key on the right. Hold modifiers and press the final key, then Apply. Backspace or Delete clears a key during capture. Entry numbers are labels; no number keys are assigned automatically. Avoid shortcuts already used by the game.
+
+[b]Requirements[/b]
+Windows Mono Kingdom Inc. and BepInEx 5 with its bundled Harmony. BepInEx is not included. Tested with Kingdom Inc. Release v1.0.12 and BepInEx 5.4.23.6.
+
+[b]Installation and removal[/b]
+Close the game and extract the archive into its installation folder. The DLL belongs at BepInEx/plugins/HotkeyCustomizer/HotkeyCustomizer.dll. Update only that DLL with the game closed. Remove its plugin folder to uninstall. The optional configuration file is BepInEx/config/urakka.kingdominc.hotkeycustomizer.cfg. No save migration is required. Removing the plugin makes vanilla combinations fall back to their final keys; use Reset to default if desired. Manual installation is supported; mod-manager installation is untested.
+
+[b]Limitations[/b]
+Keyboard shortcuts only. Locked buildings cannot be placed until researched. Hotkeys are suspended during text entry, pause menus, alerts and incompatible tools. Existing game shortcuts remain active, so overlapping keys can trigger the native action too. The lowest-numbered building entry wins if entries share a shortcut.
+
+[b]Credits[/b]
+Urakka; BepInEx and Harmony. Native game UI is reused at runtime. No game assets or assemblies are bundled.
