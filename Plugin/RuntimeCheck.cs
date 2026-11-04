@@ -49,6 +49,7 @@ namespace KingdomHotkeyCustomizer
             string error = null;
             Keyboard keyboard = null; Mouse mouse = null;
             KeyBindingsUI menu = null; BuildingSettings settings = null;
+            BuildingHotbar hotbar = null;
             try
             {
                 Check(GamePlayer.Current == null && !GameUI.Instance, "No normal kingdom loaded");
@@ -64,6 +65,10 @@ namespace KingdomHotkeyCustomizer
                 Check(GameInput.Asset.SaveBindingOverridesAsJson() == customized, "Opening mod settings preserves existing custom workspace bindings");
                 Check(settings.Dropdowns.Count == 10 && settings.KeyButtons.Count == 10, "Main menu displays ten key buttons and ten building dropdowns");
                 Check(settings.KeyButtons.All(b => b.GetComponentInChildren<TMP_Text>().text == "Unassigned"), "All ten key buttons start Unassigned");
+                Check(settings.SectionLabel.text == "Custom Hotkeys" && settings.HotbarToggle.isOn && ShowHotbar.Value,
+                    "Custom Hotkeys section includes a native Show Hotbar checkbox enabled by default");
+                settings.HotbarToggle.isOn = false;
+                Check(!settings.PendingShowHotbar && ShowHotbar.Value, "Hotbar checkbox remains pending until Apply");
                 Check(settings.Choices.Contains("Mine") && settings.Choices.Contains("Manifold"), "Dropdown contains real building types");
                 Check(BuildingCatalog.All().All(e => e.RequiredTech != null), "Dropdown catalog contains only research-backed purchasable types");
                 Check(GamePlayer.Current == null, "Main-menu catalog restores the empty player context without loading a kingdom");
@@ -71,6 +76,8 @@ namespace KingdomHotkeyCustomizer
                 Check(settings.Pending[0] == "Mine" && Buildings[0].Value == "", "Dropdown edits remain pending until Apply");
                 settings.PendingKeys[0] = "Ctrl+F6";
                 settings.Commit();
+                Check(!ShowHotbar.Value && new ConfigFile(Config.ConfigFilePath, false).Bind("Interface", "ShowHotbar", true).Value == false,
+                    "Show Hotbar preference is saved and reloads");
                 Check(Buildings[0].Value == "Mine" && Bindings[0].Value == "Ctrl+F6", "Apply commits building and key together");
                 var reload = new ConfigFile(Config.ConfigFilePath, false);
                 Check(reload.Bind("Buildings", "Slot0", "").Value == "Mine" && reload.Bind("Hotkeys", "Slot0", "").Value == "Ctrl+F6", "Assignments persist in the mod configuration across reload");
@@ -78,9 +85,14 @@ namespace KingdomHotkeyCustomizer
                 settings.Begin(); settings.Pending[0] = "Manifold"; settings.PendingKeys[0] = "Alt+F7";
                 menu.CancelBindings();
                 MainMenuUI.Instance.ShowKeyBindings();
+                Check(!settings.HotbarToggle.isOn, "Opening settings restores the saved visibility preference");
+                settings.HotbarToggle.isOn = true;
+                menu.CancelBindings(); MainMenuUI.Instance.ShowKeyBindings();
+                Check(!settings.PendingShowHotbar && !ShowHotbar.Value, "Cancel discards hotbar checkbox edits");
                 Check(settings.Pending[0] == "Mine" && settings.PendingKeys[0] == "Ctrl+F6", "Cancel discards pending building and key edits");
                 menu.ResetBindings();
                 Check(settings.Pending.All(s => s == "") && settings.PendingKeys.All(s => s == ""), "Reset clears all mod entries in the pending form");
+                Check(settings.HotbarToggle.isOn && !ShowHotbar.Value, "Reset restores Show Hotbar in the pending form only");
                 Check(Buildings[0].Value == "Mine" && Bindings[0].Value == "Ctrl+F6", "Reset remains reversible until Apply");
                 menu.CancelBindings();
                 GameInput.Asset.LoadBindingOverridesFromJson(original);
@@ -159,7 +171,7 @@ namespace KingdomHotkeyCustomizer
                 CaptureNative(menu, "Hotkey9", keyboard, Key.Digit9); menu.ApplyBindings();
                 Check(VanillaBindings.Entry(GameInput.Controls.UI.Hotkey9).Value == "Digit9", "Vanilla single-key assignment still works");
                 MainMenuUI.Instance.ShowKeyBindings();
-                ScrollToBottom(menu);
+                ScrollToCustomSection(menu, settings);
             }
             catch (Exception ex) { error = ex.ToString(); }
             yield return new WaitForSecondsRealtime(.4f);
@@ -181,10 +193,13 @@ namespace KingdomHotkeyCustomizer
             {
                 Keys(keyboard); EventSystem.current.SetSelectedGameObject(null);
                 Check(CanUseBuildings(), "Gameplay permits building hotkeys");
+                hotbar = GameUI.Instance.GetComponent<BuildingHotbar>();
+                Check(hotbar && hotbar.Items.Length == 10 && !hotbar.Strip.gameObject.activeSelf, "Hidden preference hides the gameplay hotbar");
                 Keys(keyboard, Key.F6); Update();
                 Check(!WorldFlowManager.Instance.BlueprintActive, "Plain key does not trigger a Ctrl shortcut");
                 Keys(keyboard); Keys(keyboard, Key.LeftCtrl, Key.F6); Update();
                 Check(WorldFlowManager.Instance.BlueprintActive && CurrentGhostType() == "Mine", "Assigned Ctrl hotkey opens the normal Mine placement preview");
+                Check(!ShowHotbar.Value, "Keyboard shortcut remains active with Show Hotbar disabled");
                 int before = GamePlayer.Current.ActiveFlow.Elements.Count;
                 Check(before == 0, "Shortcut does not place or charge for a building directly");
                 EndPreview();
@@ -217,11 +232,49 @@ namespace KingdomHotkeyCustomizer
                 Check(GameUI.Instance.IsActive(GameUIType.BuyMenu), "Vanilla Ctrl + B invokes the native purchase-menu callback");
                 GameUI.Instance.ToggleBuyMenu(false); Keys(keyboard); WorldFlowManager.Instance.ShowFlow(0);
                 Bindings[1].Value = "Alt+F7"; Buildings[1].Value = "Manifold";
+                ShowHotbar.Value = true; hotbar.Refresh();
+                Check(hotbar.Strip.gameObject.activeSelf && Mathf.Approximately(hotbar.Strip.anchoredPosition.x, hotbar.Strip.rect.width - BuildingHotbar.Peek),
+                    "Enabled hotbar starts collapsed with an edge visible");
+                Check(hotbar.Items[0].Icon.sprite == FlowElement.GetAllTypes().First(e => e.ElementType == "Mine").Icon
+                    && hotbar.Items[0].GetTooltipTitle() == Translation.Translate(FlowElement.GetAllTypes().First(e => e.ElementType == "Mine").Label),
+                    "Hotbar uses the assigned building icon and hover title");
+                Check(hotbar.Items[0].GetComponentsInChildren<TMP_Text>().All(t => t == hotbar.Items[0].KeyLabel),
+                    "Hotbar tiles contain shortcut labels and no visible building names");
+                Capture(Path.Combine(directory, "hotbar-collapsed.png"));
+                hotbar.Strip.GetComponent<HotbarHover>().OnPointerEnter(new PointerEventData(EventSystem.current));
+            }
+            catch (Exception ex) { error = ex.ToString(); }
+            yield return new WaitForSecondsRealtime(.3f);
+            if (error == null) try
+            {
+                Check(Mathf.Approximately(hotbar.Strip.anchoredPosition.x, 0), "Hover fully reveals the vertical hotbar");
+                var source = hotbar.Items[0].GetComponentInChildren<Behaviour.UI.Tooltip.TooltipSource>();
+                Check(source && source.GetTitle() == hotbar.Items[0].GetTooltipTitle(), "Native hover source resolves the assigned building name");
+                source.OnPointerEnter(new PointerEventData(EventSystem.current));
+                Check(Behaviour.UI.UITooltip.Active && FindObjectsByType<Behaviour.UI.UITooltip>(FindObjectsSortMode.None)
+                    .Any(t => t.Source == source && t.GetComponentsInChildren<TMP_Text>().Any(label => label.text == source.GetTitle())),
+                    "Hover displays the building name in the native tooltip");
+                Capture(Path.Combine(directory, "hotbar-tooltip.png"));
+                source.OnPointerExit(new PointerEventData(EventSystem.current));
+                Capture(Path.Combine(directory, "hotbar-expanded.png"));
+                hotbar.Items[0].OnPointerClick(new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left });
+                Check(CurrentGhostType() == "Mine", "Clicking a hotbar icon opens normal building placement");
+                EndPreview();
+                hotbar.Strip.GetComponent<HotbarHover>().OnPointerExit(new PointerEventData(EventSystem.current));
+            }
+            catch (Exception ex) { error = ex.ToString(); }
+            yield return new WaitForSecondsRealtime(.4f);
+            if (error == null) try
+            {
+                Check(Mathf.Approximately(hotbar.Strip.anchoredPosition.x, hotbar.Strip.rect.width - BuildingHotbar.Peek), "Leaving the hotbar returns it to the edge");
                 Keys(keyboard, Key.LeftAlt, Key.F7); Update();
                 Check(CurrentGhostType() == "Manifold", "A second entry selects its own assigned building");
                 EndPreview(); Keys(keyboard);
                 var locked = FlowElement.GetAllTypes().First(e => e.RequiredTech != null && !e.IsPurchaseable(GamePlayer.Current));
                 Buildings[2].Value = locked.ElementType;
+                hotbar.Refresh(); hotbar.Items[2].OnPointerClick(new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left });
+                Check(!WorldFlowManager.Instance.BlueprintActive && hotbar.Items[2].Icon.color.a < .5f,
+                    "Hotbar dims locked buildings and cannot bypass their research");
                 Check(!SelectBuilding(2) && !WorldFlowManager.Instance.BlueprintActive, "Locked research cannot be bypassed by a hotkey");
                 Buildings[2].Value = "MissingCompanionBuilding";
                 Check(!SelectBuilding(2), "Unavailable building IDs safely do nothing");
@@ -246,7 +299,20 @@ namespace KingdomHotkeyCustomizer
                 var ingameKeys = ingame.GetComponentInChildren<KeyBindingsUI>();
                 AccessTools.Method(typeof(KeyBindingsUI), "Start").Invoke(ingameKeys, null);
                 var ingameSettings = SettingsFor(ingameKeys);
+                hotbar.Refresh();
+                Check(!hotbar.Strip.gameObject.activeSelf, "Hotbar hides behind the pause settings");
                 Check(ingameSettings.Dropdowns.Count == 10 && ingameSettings.PendingKeys[0] == "Ctrl+F6", "Pause menu shares persisted building and key assignments");
+                Check(ingameSettings.SectionLabel && ingameSettings.HotbarToggle.isOn, "Pause settings include Custom Hotkeys and the saved Show Hotbar checkbox");
+                ScrollToCustomSection(ingameKeys, ingameSettings);
+            }
+            catch (Exception ex) { error = ex.ToString(); }
+            yield return new WaitForSecondsRealtime(.3f);
+            if (error == null) try
+            {
+                Capture(Path.Combine(directory, "hotkey-customizer-ingame-settings.png"));
+                var ingame = Resources.FindObjectsOfTypeAll<InGameMenuUI>().First();
+                var ingameKeys = ingame.GetComponentInChildren<KeyBindingsUI>();
+                var ingameSettings = SettingsFor(ingameKeys);
                 ingameSettings.PendingKeys[0] = "Shift+F9";
                 ingameKeys.ApplyBindings();
                 Check(Bindings[0].Value == "Shift+F9", "Native Apply button commits the mod's key assignment");
@@ -308,6 +374,18 @@ namespace KingdomHotkeyCustomizer
             LayoutRebuilder.ForceRebuildLayoutImmediate(parent);
             var scroll = parent.GetComponentInParent<ScrollRect>();
             if (scroll) scroll.verticalNormalizedPosition = 0;
+            Canvas.ForceUpdateCanvases();
+        }
+
+        static void ScrollToCustomSection(KeyBindingsUI menu, BuildingSettings settings)
+        {
+            Canvas.ForceUpdateCanvases();
+            var parent = (RectTransform)AccessTools.Field(typeof(KeyBindingsUI), "_rowParent").GetValue(menu);
+            LayoutRebuilder.ForceRebuildLayoutImmediate(parent);
+            var scroll = parent.GetComponentInParent<ScrollRect>();
+            var heading = (RectTransform)settings.SectionLabel.transform.parent;
+            float offset = parent.rect.yMax - parent.InverseTransformPoint(heading.TransformPoint(new Vector3(0, heading.rect.yMax, 0))).y;
+            scroll.verticalNormalizedPosition = 1 - Mathf.Clamp01(offset / (parent.rect.height - scroll.viewport.rect.height));
             Canvas.ForceUpdateCanvases();
         }
 

@@ -20,18 +20,21 @@ namespace KingdomHotkeyCustomizer
     public sealed partial class HotkeyCustomizerPlugin : BaseUnityPlugin
     {
         public const string Id = "urakka.kingdominc.hotkeycustomizer";
-        public const string Version = "1.1.0";
+        public const string Version = "1.2.1";
         internal static HotkeyCustomizerPlugin Instance;
         internal static bool Diagnostic => Environment.GetCommandLineArgs().Contains("-hotkeys-smoke");
         internal readonly ConfigEntry<string>[] Buildings = new ConfigEntry<string>[10];
         internal readonly ConfigEntry<string>[] Bindings = new ConfigEntry<string>[10];
         internal readonly BuildingShortcut[] Shortcuts = new BuildingShortcut[10];
+        internal ConfigEntry<bool> ShowHotbar;
         Harmony harmony;
 
         void Awake()
         {
             Instance = this;
             InputSystem.RegisterInteraction<ShortcutModifiers>(VanillaBindings.Interaction);
+            ShowHotbar = Config.Bind("Interface", "ShowHotbar", true,
+                "Show the vertical building hotbar on the right edge. Hover to reveal it. Keyboard shortcuts work when hidden.");
             for (int slot = 0; slot < 10; slot++)
             {
                 Buildings[slot] = Config.Bind("Buildings", "Slot" + slot, "",
@@ -44,7 +47,7 @@ namespace KingdomHotkeyCustomizer
             }
             harmony = new Harmony(Id);
             foreach (var type in new[] { typeof(ShowSettings), typeof(OpenSettings), typeof(ApplySettings), typeof(ResetSettings), typeof(NativeRebind),
-                typeof(VanillaBindings.Load), typeof(VanillaBindings.Snapshot), typeof(VanillaBindings.Label) })
+                typeof(VanillaBindings.Load), typeof(VanillaBindings.Snapshot), typeof(VanillaBindings.Label), typeof(CreateHotbar) })
                 harmony.CreateClassProcessor(type).Patch();
             if (Diagnostic)
             {
@@ -91,6 +94,12 @@ namespace KingdomHotkeyCustomizer
             WorldFlowManager.Instance.StopBlueprintMode();
             WorldFlowManager.Instance.ShowPurchaseBlueprint(element, false);
             return true;
+        }
+
+        [HarmonyPatch(typeof(GameUI), "Start")]
+        static class CreateHotbar
+        {
+            static void Postfix(GameUI __instance) => __instance.gameObject.AddComponent<BuildingHotbar>().Build(__instance);
         }
 
         [HarmonyPatch(typeof(KeyBindingsUI), "OnEnable")]

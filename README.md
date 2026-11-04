@@ -1,18 +1,22 @@
 # Hotkey Customizer
 
-Key combinations for vanilla shortcuts and ten configurable building shortcuts for Kingdom Inc. Entries are numbered 0-9, and every key and building starts **Unassigned**. Installing this plugin does not change any workspace shortcut or other existing game binding.
+Key combinations for vanilla shortcuts, ten configurable building shortcuts, and a vertical building hotbar for Kingdom Inc. Entries are numbered 0-9, and every key and building starts **Unassigned**. Installing this plugin does not change any workspace shortcut or other existing game binding.
 
-[Download 1.1.0](https://github.com/urakkaamyx/KingdomInc_HotkeyCustomizer/releases/tag/v1.1.0) · [Nexus Mods](https://www.nexusmods.com/kingdominc/mods/16)
+[Published releases](https://github.com/urakkaamyx/KingdomInc_HotkeyCustomizer/releases) · [Nexus Mods](https://www.nexusmods.com/kingdominc/mods/16)
 
 ![Building selectors and vanilla-style key setters](Assets/building-hotkeys-screenshot.png)
 
 ## Use
 
 1. Open **Options > Key Bindings** from the main menu or pause menu.
-2. To change a vanilla shortcut, click its existing key field. For a building shortcut, scroll down to **Building 0-9**, choose a building in the left dropdown, then click the key field on the right.
+2. To change a vanilla shortcut, click its existing key field. For a building shortcut, scroll down to **Custom Hotkeys**, choose a building in the left dropdown for **Building 0-9**, then click the key field on the right.
 3. Hold the desired modifiers, then press the final key. Ctrl, Alt, Shift and Windows/Meta modifiers can be combined, for example **Ctrl + Shift + 1**. Left and right modifiers work interchangeably.
 4. Repeat for other shortcuts as needed. The building key fields use the vanilla font, color and hover style.
 5. Click **Apply**. **Cancel** discards pending edits.
+
+The **Custom Hotkeys** section also includes **Show Hotbar**, enabled by default. The vertical bar peeks out from the right edge during gameplay. Hover to reveal it; move away to tuck it back. Each slot has a black background with the assigned building's native icon and a small shortcut label. Building names appear only in hover tooltips. Click an icon to open that building's normal placement preview, including when its keyboard shortcut is unassigned. Locked buildings are dimmed and remain subject to research and cost checks. Empty slots have no building icon.
+
+Uncheck **Show Hotbar** and apply to hide the bar; keyboard shortcuts continue working. The checkbox follows the same Apply/Cancel behavior as other settings. Reset restores the checkbox to enabled in the pending form. The bar scales to fit the available UI height and hides behind pause menus and alerts.
 
 Vanilla bindings use the game's normal actions and can now capture combinations as well as single keys. Existing assignments stay in place until you change and apply them. Only the combination you choose triggers the reassigned action; its plain key and extra modifiers do not match.
 
@@ -46,7 +50,7 @@ dotnet build .\HotkeyCustomizer.csproj -c Release
 .\install.ps1
 ```
 
-`verify-isolated.ps1` creates a separate local runtime, starts a disposable kingdom, blocks save writes and achievements, and redirects the key-binding screen's input preferences to memory. It checks blank defaults, UI, Apply/Cancel/Reset, configuration persistence, modifier capture, vanilla workspace/menu combinations, single-key and cleared vanilla bindings, portable native preferences, placement and research/cost/input guards. It never loads a normal saved kingdom. The companion run copies installed plugins into that isolated runtime. Verification output is local and excluded from the player package.
+`verify-isolated.ps1` creates a separate local runtime, starts a disposable kingdom, blocks save writes and achievements, and redirects the key-binding screen's input preferences to memory. It checks blank defaults, UI, Apply/Cancel/Reset, configuration persistence, modifier capture, vanilla workspace/menu combinations, single-key and cleared vanilla bindings, portable native preferences, placement and research/cost/input guards. Hotbar checks cover the custom section and checkbox, persistence, hidden-bar keyboard use, reveal and retreat, building icons and hover titles, click placement and locked buildings. It never loads a normal saved kingdom. The companion run copies installed plugins into that isolated runtime. Verification output is local and excluded from the player package.
 
 The install script checks that the game is closed before replacing an existing DLL. `-StageForNextLaunch` permits a first installation while the game is running; the game must restart to load it.
 

@@ -1,40 +1,56 @@
 [size=5][b]Hotkey Customizer[/b][/size]
 
-Add key combinations to vanilla shortcuts and ten user-configurable building shortcuts to Kingdom Inc. Every entry starts Unassigned, and your existing workspace shortcuts stay unchanged.
+Add key combinations to vanilla shortcuts, ten user-configurable building shortcuts, and a vertical building hotbar to Kingdom Inc. Every entry starts Unassigned, and your existing workspace shortcuts stay unchanged.
 
 [b]Features[/b]
 [list]
 [*]Rebind vanilla shortcuts to combinations such as Ctrl + Shift + 1.[/*]
-[*]Ten building entries numbered 0-9 in Options > Key Bindings.[/*]
+[*]Ten building entries numbered 0-9 in Options > Key Bindings > Custom Hotkeys.[/*]
 [*]Building dropdowns on the left; vanilla-style key setters on the right.[/*]
 [*]Assign your own key, with optional Ctrl, Alt, Shift or Meta modifiers.[/*]
 [*]Choose a specific building from a dropdown for each entry.[/*]
 [*]Apply saves assignments; Cancel discards edits; Reset clears the pending entries.[/*]
 [*]Opens normal building placement with the game's research and cost checks.[/*]
 [*]Settings persist across restarts and kingdoms without adding save data.[/*]
+[*]Vertical hotbar at the right edge: hover to reveal, move away to retract. Black backgrounds with native building icons; names appear in hover tooltips.[/*]
+[*]Show Hotbar checkbox with Apply/Cancel. Keyboard shortcuts work with the bar hidden. Click icons for normal placement.[/*]
 [/list]
 
 [b]How to use[/b]
-Open Options > Key Bindings. Click any vanilla key field to assign a combination. For building entries, scroll to Building 0-9, choose a building on the left and assign a key on the right. Hold modifiers and press the final key, then Apply. Backspace or Delete clears a key during capture. Entry numbers are labels; no number keys are assigned automatically. Avoid shortcuts already used by the game.
+Open Options > Key Bindings. Click any vanilla key field to assign a combination. For building entries, scroll to Custom Hotkeys and Building 0-9, choose a building on the left and assign a key on the right. Hold modifiers and press the final key, then Apply. Backspace or Delete clears a key during capture. Entry numbers are labels; no number keys are assigned automatically. Avoid shortcuts already used by the game.
 
 [b]Requirements[/b]
-Windows Mono Kingdom Inc. and BepInEx 5 with its bundled Harmony. BepInEx is not included. Tested with Kingdom Inc. Release v1.0.12 and BepInEx 5.4.23.6.
+Windows Mono Kingdom Inc. and BepInEx 5 with its bundled Harmony. BepInEx is not included.
 
 [b]Installation and removal[/b]
-Close the game and extract the archive into its installation folder. The DLL belongs at BepInEx/plugins/HotkeyCustomizer/HotkeyCustomizer.dll. Update only that DLL with the game closed. Remove its plugin folder to uninstall. The optional configuration file is BepInEx/config/urakka.kingdominc.hotkeycustomizer.cfg. No save migration is required. Removing the plugin makes vanilla combinations fall back to their final keys; use Reset to default if desired. Manual installation is supported; mod-manager installation is untested.
+Close the game and extract the archive into its installation folder. The DLL belongs at BepInEx/plugins/HotkeyCustomizer/HotkeyCustomizer.dll. Update only that DLL with the game closed. Remove its plugin folder to uninstall. The optional configuration file is BepInEx/config/urakka.kingdominc.hotkeycustomizer.cfg. No save migration is required. Removing the plugin makes vanilla combinations fall back to their final keys; use Reset to default if desired.
 
 [b]Limitations[/b]
-Keyboard shortcuts only. Locked buildings cannot be placed until researched. Hotkeys are suspended during text entry, pause menus, alerts and incompatible tools. Existing game shortcuts remain active, so overlapping keys can trigger the native action too. The lowest-numbered building entry wins if entries share a shortcut.
+Locked buildings cannot be placed until researched. Hotkeys are suspended during text entry, pause menus, alerts and incompatible tools.
+
+[b]Compatibility[/b]
+Existing game shortcuts remain active. Assigning the same key to a building shortcut and a native action can trigger both. When building entries share a shortcut, the lowest-numbered entry takes priority.
+
+Other replacements for the key-binding menu, key capture or input-binding persistence may interfere. The table lists potential patch overlaps; sharing a method does not by itself establish a conflict.
+
+[table]
+[tr][td][b]Class.Method[/b][/td][td][b]May conflict with[/b][/td][/tr]
+[tr][td]KeyBindingsUI.OnEnable[/td][td]Key-binding menu replacements that override pending settings, saved combinations or the Cancel snapshot.[/td][/tr]
+[tr][td]KeyBindingsUI.RefreshBindings[/td][td]Key-binding menu replacements that rebuild the row list or remove the custom building entries.[/td][/tr]
+[tr][td]KeyBindingsUI.ApplyBindings[/td][td]Binding-save replacements that bypass custom assignments or overwrite modifier combinations.[/td][/tr]
+[tr][td]KeyBindingsUI.ResetBindings[/td][td]Reset-button replacements that bypass clearing the custom building entries and pending bindings.[/td][/tr]
+[tr][td]KeyBindingsUI.Apply[/td][td]Input-binding loaders that overwrite the saved modifier combinations after loading game controls.[/td][/tr]
+[tr][td]KeyBindingRow.OnPointerClick[/td][td]Shortcut-capture replacements that consume the same click or start a competing key-capture operation.[/td][/tr]
+[tr][td]KeyBindingRow._resetBindingText[/td][td]Binding-label replacements that overwrite the displayed key combination.[/td][/tr]
+[tr][td]GameUI.Start[/td][td]Gameplay UI replacements that remove or cover the building hotbar.[/td][/tr]
+[/table]
 
 [b]Credits[/b]
 Urakka; BepInEx and Harmony. Native game UI is reused at runtime. No game assets or assemblies are bundled.
 
 [b]Downloads and source[/b]
 [url=https://github.com/urakkaamyx/KingdomInc_HotkeyCustomizer]Source and user guide[/url]
-[url=https://github.com/urakkaamyx/KingdomInc_HotkeyCustomizer/releases/tag/v1.1.0]GitHub release 1.1.0[/url]
+[url=https://github.com/urakkaamyx/KingdomInc_HotkeyCustomizer/releases/tag/v1.2.1]GitHub release 1.2.1[/url]
 [url=https://github.com/BepInEx/BepInEx/releases/tag/v5.4.23.6]BepInEx 5 Windows x64[/url]
-
-[b]Verification[/b]
-64 isolated runtime/UI checks and 64 compatibility checks with 11 other plugins passed on the released DLL. The archive passed clean extraction and hash verification.
 
 Generative AI was used for code, documentation and promotional thumbnail artwork. The gallery gameplay screenshot shows the running mod.

@@ -21,6 +21,9 @@ namespace KingdomHotkeyCustomizer
         internal readonly List<TMP_Dropdown> Dropdowns = new List<TMP_Dropdown>();
         internal readonly List<Button> KeyButtons = new List<Button>();
         internal readonly Dictionary<string, string> PendingVanilla = new Dictionary<string, string>();
+        internal bool PendingShowHotbar;
+        internal Toggle HotbarToggle;
+        internal TMP_Text SectionLabel;
         internal InputAction ListeningAction;
         TMP_Text nativeLabel;
         string nativeText;
@@ -32,6 +35,7 @@ namespace KingdomHotkeyCustomizer
         internal void Begin()
         {
             CancelListening();
+            PendingShowHotbar = HotkeyCustomizerPlugin.Instance.ShowHotbar.Value;
             PendingVanilla.Clear();
             foreach (var action in GameInput.RebindableKeys) PendingVanilla[action.name] = VanillaBindings.Entry(action).Value;
             for (int digit = 0; digit < 10; digit++) {
@@ -51,6 +55,7 @@ namespace KingdomHotkeyCustomizer
                 plugin.Bindings[digit].Value = PendingKeys[digit] ?? "";
             }
                 foreach (var action in GameInput.RebindableKeys) VanillaBindings.Entry(action).Value = PendingVanilla[action.name];
+                plugin.ShowHotbar.Value = PendingShowHotbar;
             }
             finally { plugin.Config.SaveOnConfigSet = saveOnSet; }
             plugin.Config.Save();
@@ -59,6 +64,7 @@ namespace KingdomHotkeyCustomizer
         internal void ResetChoices()
         {
             CancelListening();
+            PendingShowHotbar = true;
             for (int digit = 0; digit < 10; digit++) { Pending[digit] = ""; PendingKeys[digit] = ""; }
             foreach (var name in PendingVanilla.Keys.ToArray()) PendingVanilla[name] = "";
         }
@@ -125,6 +131,9 @@ namespace KingdomHotkeyCustomizer
                 .Select(o => (TMP_Dropdown)AccessTools.Field(typeof(OptionsUI), "_resolutionsDropdown").GetValue(o))
                 .FirstOrDefault(d => d);
             if (!template) throw new InvalidOperationException("Native options dropdown was not available.");
+            var options = Resources.FindObjectsOfTypeAll<OptionsUI>().First(o => o.gameObject.scene == gameObject.scene
+                && (TMP_Dropdown)AccessTools.Field(typeof(OptionsUI), "_resolutionsDropdown").GetValue(o) == template);
+            BuildSection(parent, prefab, options);
             var elements = BuildingCatalog.All()
                 .OrderBy(e => Translation.Translate(e.Label), StringComparer.CurrentCultureIgnoreCase).ToList();
             Choices = new List<string> { "" };
@@ -193,6 +202,52 @@ namespace KingdomHotkeyCustomizer
             }
             // Preserve the game's scrolling layout and make every appended row reachable.
             LayoutRebuilder.ForceRebuildLayoutImmediate(parent);
+        }
+
+        void BuildSection(RectTransform parent, KeyBindingRow prefab, OptionsUI options)
+        {
+            var heading = Instantiate(prefab, parent);
+            heading.name = "Custom Hotkeys section";
+            SectionLabel = (TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_label").GetValue(heading);
+            SectionLabel.text = "Custom Hotkeys";
+            SectionLabel.fontStyle = FontStyles.Bold;
+            SectionLabel.rectTransform.anchorMax = Vector2.one;
+            SectionLabel.rectTransform.offsetMin = new Vector2(6, 0);
+            SectionLabel.rectTransform.offsetMax = Vector2.zero;
+            ((TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_binding").GetValue(heading)).gameObject.SetActive(false);
+            var headingImage = (Image)AccessTools.Field(typeof(KeyBindingRow), "_button").GetValue(heading);
+            headingImage.enabled = false;
+            var headingLayout = heading.GetComponent<LayoutElement>() ?? heading.gameObject.AddComponent<LayoutElement>();
+            headingLayout.preferredHeight = 34; headingLayout.minHeight = 34;
+            DestroyImmediate(heading);
+
+            var row = Instantiate(prefab, parent);
+            row.name = "Show Hotbar";
+            var label = (TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_label").GetValue(row);
+            label.text = "Show Hotbar"; label.raycastTarget = false;
+            ((Image)AccessTools.Field(typeof(KeyBindingRow), "_button").GetValue(row)).enabled = false;
+            ((TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_binding").GetValue(row)).gameObject.SetActive(false);
+            var source = (Toggle)AccessTools.Field(typeof(OptionsUI), "_windowModeToggle").GetValue(options);
+            HotbarToggle = Instantiate(source, row.transform);
+            HotbarToggle.name = "Show Hotbar checkbox";
+            HotbarToggle.onValueChanged = new Toggle.ToggleEvent();
+            HotbarToggle.group = null;
+            HotbarToggle.navigation = new Navigation { mode = Navigation.Mode.None };
+            foreach (var text in HotbarToggle.GetComponentsInChildren<TMP_Text>(true)) text.gameObject.SetActive(false);
+            var rect = (RectTransform)HotbarToggle.transform;
+            rect.anchorMin = rect.anchorMax = new Vector2(.84f, .5f);
+            rect.pivot = new Vector2(.5f, .5f); rect.anchoredPosition = Vector2.zero;
+            rect.localScale = Vector3.one; rect.sizeDelta = new Vector2(24, 24);
+            var background = HotbarToggle.targetGraphic.rectTransform;
+            background.anchorMin = Vector2.zero; background.anchorMax = Vector2.one;
+            background.offsetMin = background.offsetMax = Vector2.zero;
+            var checkmark = HotbarToggle.graphic.rectTransform;
+            checkmark.anchorMin = Vector2.zero; checkmark.anchorMax = Vector2.one;
+            checkmark.offsetMin = checkmark.offsetMax = Vector2.zero;
+            HotbarToggle.SetIsOnWithoutNotify(PendingShowHotbar);
+            HotbarToggle.onValueChanged.AddListener(value => { CancelListening(); PendingShowHotbar = value; });
+            HotbarToggle.gameObject.SetActive(true);
+            DestroyImmediate(row);
         }
     }
 }
