@@ -24,6 +24,7 @@ namespace KingdomHotkeyCustomizer
         internal bool PendingShowHotbar;
         internal Toggle HotbarToggle;
         internal TMP_Text SectionLabel;
+        internal TMP_Text ResearchNotice;
         internal InputAction ListeningAction;
         TMP_Text nativeLabel;
         string nativeText;
@@ -220,6 +221,22 @@ namespace KingdomHotkeyCustomizer
             var headingLayout = heading.GetComponent<LayoutElement>() ?? heading.gameObject.AddComponent<LayoutElement>();
             headingLayout.preferredHeight = 34; headingLayout.minHeight = 34;
             DestroyImmediate(heading);
+
+            ResearchNotice = null;
+            if (GamePlayer.Current != null && !HotkeyCustomizerPlugin.Unlocked)
+            {
+                var notice = Instantiate(prefab, parent);
+                notice.name = "Hotkey Customizer research required";
+                ResearchNotice = (TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_label").GetValue(notice);
+                ResearchNotice.text = "Research Hotkey Customizer for free in Tech Tree > Mods.";
+                ResearchNotice.rectTransform.anchorMin = Vector2.zero; ResearchNotice.rectTransform.anchorMax = Vector2.one;
+                ResearchNotice.rectTransform.offsetMin = new Vector2(6, 0); ResearchNotice.rectTransform.offsetMax = new Vector2(-6, 0);
+                ResearchNotice.enableAutoSizing = true; ResearchNotice.fontSizeMin = 10; ResearchNotice.fontSizeMax = 14;
+                ResearchNotice.raycastTarget = false;
+                ((TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_binding").GetValue(notice)).gameObject.SetActive(false);
+                ((Image)AccessTools.Field(typeof(KeyBindingRow), "_button").GetValue(notice)).enabled = false;
+                DestroyImmediate(notice);
+            }
 
             var row = Instantiate(prefab, parent);
             row.name = "Show Hotbar";

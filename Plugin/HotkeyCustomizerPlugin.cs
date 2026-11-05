@@ -8,6 +8,7 @@ using Assets.Source.Player;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
+using KingdomFoundation.Api;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -17,10 +18,15 @@ using GameInput = Assets.Behaviour.Input.PlayerInput;
 namespace KingdomHotkeyCustomizer
 {
     [BepInPlugin(Id, "Hotkey Customizer", Version)]
+    [BepInDependency("urakka.kingdominc.foundation", "0.5.0")]
     public sealed partial class HotkeyCustomizerPlugin : BaseUnityPlugin
     {
         public const string Id = "urakka.kingdominc.hotkeycustomizer";
-        public const string Version = "1.2.1";
+        public const string Version = "1.3.0";
+        public const string ResearchId = Id + ".unlock";
+        ITechNode research;
+        internal static bool Unlocked => Instance != null && Instance.research?.IsRegistered == true
+            && GamePlayer.Current != null && GamePlayer.Current.HasTech(ResearchId);
         internal static HotkeyCustomizerPlugin Instance;
         internal static bool Diagnostic => Environment.GetCommandLineArgs().Contains("-hotkeys-smoke");
         internal readonly ConfigEntry<string>[] Buildings = new ConfigEntry<string>[10];
@@ -32,6 +38,9 @@ namespace KingdomHotkeyCustomizer
         void Awake()
         {
             Instance = this;
+            research = FoundationApi.CreateTechNode(new TechNodeDefinition(ResearchId, "Hotkey Customizer", Id, "Hotkey Customizer",
+                description: "Unlock ten custom building shortcuts and a vertical building hotbar. Configure them in Options > Key Bindings > Custom Hotkeys. Free research.",
+                research: new TechNodeOptions(nodeType: TechNodeType.Utility, fixedCost: new CurrencyCollection(), iconName: "Icons_17")));
             InputSystem.RegisterInteraction<ShortcutModifiers>(VanillaBindings.Interaction);
             ShowHotbar = Config.Bind("Interface", "ShowHotbar", true,
                 "Show the vertical building hotbar on the right edge. Hover to reveal it. Keyboard shortcuts work when hidden.");
@@ -58,11 +67,11 @@ namespace KingdomHotkeyCustomizer
             Logger.LogInfo("Hotkey Customizer ready: vanilla key combinations and ten building shortcuts. Existing assignments are preserved.");
         }
 
-        void OnDestroy() { harmony?.UnpatchSelf(); if (Instance == this) Instance = null; }
+        void OnDestroy() { harmony?.UnpatchSelf(); research?.Dispose(); if (Instance == this) Instance = null; }
 
         internal static bool CanUseBuildings()
         {
-            if (!GameUI.Instance || GamePlayer.Current == null || !GameInput.Enabled || Time.timeScale == 0
+            if (!Unlocked || !GameUI.Instance || !GameInput.Enabled || Time.timeScale == 0
                 || !WorldFlowManager.Visible || UIAlertWindow.Active) return false;
             var selected = EventSystem.current ? EventSystem.current.currentSelectedGameObject : null;
             if (selected && (selected.GetComponentInParent<TMP_InputField>() || selected.GetComponentInParent<TMP_Dropdown>())) return false;

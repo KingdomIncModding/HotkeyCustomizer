@@ -73,7 +73,7 @@ namespace KingdomHotkeyCustomizer
         {
             if (!Strip || !HotkeyCustomizerPlugin.Instance) return;
             var plugin = HotkeyCustomizerPlugin.Instance;
-            bool visible = plugin.ShowHotbar.Value && GamePlayer.Current != null && GameUI.Instance
+            bool visible = plugin.ShowHotbar.Value && HotkeyCustomizerPlugin.Unlocked && GameUI.Instance
                 && WorldFlowManager.Visible && Time.timeScale > 0 && !GameUI.MenuVisible && !UIAlertWindow.Active;
             Strip.gameObject.SetActive(visible);
             if (!visible) { Hovered = false; revealed = 0; return; }

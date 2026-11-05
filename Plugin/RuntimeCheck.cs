@@ -192,8 +192,19 @@ namespace KingdomHotkeyCustomizer
             if (error == null) try
             {
                 Keys(keyboard); EventSystem.current.SetSelectedGameObject(null);
-                Check(CanUseBuildings(), "Gameplay permits building hotkeys");
                 hotbar = GameUI.Instance.GetComponent<BuildingHotbar>();
+                VerifyResearchLocked(hotbar, keyboard);
+                OpenResearch();
+            }
+            catch (Exception ex) { error = ex.ToString(); }
+            yield return new WaitForSecondsRealtime(.4f);
+            if (error == null) try
+            {
+                Capture(Path.Combine(directory, "hotkey-customizer-tech.png"));
+                VerifyResearchPurchase();
+                GameUI.Instance.ToggleTechMenu(false);
+                Keys(keyboard); EventSystem.current.SetSelectedGameObject(null);
+                Check(CanUseBuildings(), "Gameplay permits building hotkeys");
                 Check(hotbar && hotbar.Items.Length == 10 && !hotbar.Strip.gameObject.activeSelf, "Hidden preference hides the gameplay hotbar");
                 Keys(keyboard, Key.F6); Update();
                 Check(!WorldFlowManager.Instance.BlueprintActive, "Plain key does not trigger a Ctrl shortcut");

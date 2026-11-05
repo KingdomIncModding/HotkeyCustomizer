@@ -14,6 +14,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zipPath = Join-Path $release "KingdomInc-HotkeyCustomizer-$version.zip"
 if (Test-Path -LiteralPath $zipPath) { throw "Release already exists: $zipPath" }
 $entries = [ordered]@{
+    'Hotkey Customizer requirements.txt' = (Join-Path $project 'Nexus\REQUIREMENTS.txt')
     'BepInEx/plugins/HotkeyCustomizer/HotkeyCustomizer.dll' = $dll
     'Hotkey Customizer README.txt' = (Join-Path $project 'README.md')
 }
