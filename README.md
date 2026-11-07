@@ -10,7 +10,7 @@ Open **Tech Tree > Mods > Hotkey Customizer** and research **Hotkey Customizer**
 
 ## Key bindings
 
-1. Open **Options > Key Bindings** from the main menu or pause menu.
+1. Open **Options > Key Bindings** or **Options > Mods > Hotkey Customizer** from the main menu or pause menu.
 2. Click a vanilla key field to change that shortcut. Under **Custom Hotkeys**, choose a building on the left and click its key field on the right.
 3. Hold any desired Ctrl, Alt, Shift or Windows/Meta modifiers, then press the final key. For example, **Ctrl + Shift + 1**. Left and right modifiers work interchangeably.
 4. Click **Apply & Close** to save. **Cancel** discards pending edits.
@@ -36,6 +36,13 @@ Close the game and extract the ZIP into the Kingdom Inc. installation folder. Th
 For updates, replace that DLL with the game closed. Existing assignments and Show Hotbar preferences are kept in `BepInEx/config/urakka.kingdominc.hotkeycustomizer.cfg`. Research is saved per kingdom.
 
 To uninstall, close the game and remove the HotkeyCustomizer plugin folder. You can also remove its configuration file to discard assignments. Removing the plugin leaves reassigned vanilla combinations as ordinary bindings using their final key. Use the game's Reset to default option to restore defaults.
+
+## Changelog
+
+- **1.4.0**: Added Foundation ModConfig menu integration under Options > Mods tab.
+- **1.3.0**: Foundation tech research requirement.
+- **1.2.1**: Building hotbar integration.
+- **1.1.0**: Initial release.
 
 ## Credits
 

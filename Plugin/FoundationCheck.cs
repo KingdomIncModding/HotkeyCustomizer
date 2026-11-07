@@ -35,13 +35,14 @@ namespace KingdomHotkeyCustomizer
             Check(!hotbar.Strip.gameObject.activeSelf, "Hotbar remains hidden before its technology is researched");
             ShowHotbar.Value = false;
             var pause = Resources.FindObjectsOfTypeAll<InGameMenuUI>().First();
-            pause.gameObject.SetActive(true); pause.ShowKeyBindings();
-            var keys = pause.GetComponentInChildren<KeyBindingsUI>();
-            AccessTools.Method(typeof(KeyBindingsUI), "Start").Invoke(keys, null);
-            var settings = SettingsFor(keys);
+            pause.gameObject.SetActive(true); pause.ShowOptions();
+            var options = Resources.FindObjectsOfTypeAll<OptionsUI>().First(o => o.gameObject.activeInHierarchy);
+            var configMenu = options.GetComponent<KingdomFoundation.FoundationConfigMenu>() ?? KingdomFoundation.FoundationConfigMenu.Attach(options);
+            configMenu.ShowModsTab(Id);
+            var settings = SettingsFor(null);
             Check(settings.ResearchNotice && settings.Dropdowns.Count == 10 && settings.PendingKeys[0] == "Ctrl+F6",
                 "Locked kingdom can edit saved assignments and sees where to research them");
-            keys.CancelBindings(); pause.DoResume();
+            options.CancelOptions(); pause.DoResume();
         }
 
         void OpenResearch()

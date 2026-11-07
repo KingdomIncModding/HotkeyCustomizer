@@ -22,7 +22,7 @@ namespace KingdomHotkeyCustomizer
     public sealed partial class HotkeyCustomizerPlugin : BaseUnityPlugin
     {
         public const string Id = "urakka.kingdominc.hotkeycustomizer";
-        public const string Version = "1.3.0";
+        public const string Version = "1.4.0";
         public const string ResearchId = Id + ".unlock";
         ITechNode research;
         internal static bool Unlocked => Instance != null && Instance.research?.IsRegistered == true
@@ -39,7 +39,7 @@ namespace KingdomHotkeyCustomizer
         {
             Instance = this;
             research = FoundationApi.CreateTechNode(new TechNodeDefinition(ResearchId, "Hotkey Customizer", Id, "Hotkey Customizer",
-                description: "Unlock ten custom building shortcuts and a vertical building hotbar. Configure them in Options > Key Bindings > Custom Hotkeys. Free research.",
+                description: "Unlock ten custom building shortcuts and a vertical building hotbar. Configure them in Options > Mod Settings > Hotkey Customizer. Free research.",
                 research: new TechNodeOptions(nodeType: TechNodeType.Utility, fixedCost: new CurrencyCollection(), iconName: "Icons_17")));
             InputSystem.RegisterInteraction<ShortcutModifiers>(VanillaBindings.Interaction);
             ShowHotbar = Config.Bind("Interface", "ShowHotbar", true,
@@ -47,15 +47,16 @@ namespace KingdomHotkeyCustomizer
             for (int slot = 0; slot < 10; slot++)
             {
                 Buildings[slot] = Config.Bind("Buildings", "Slot" + slot, "",
-                    "Building type for entry " + slot + ". Choose in Options > Key Bindings; empty means Unassigned.");
+                    "Building type for entry " + slot + ". Choose in Options > Mod Settings; empty means Unassigned.");
                 Bindings[slot] = Config.Bind("Hotkeys", "Slot" + slot, "",
                     "User-assigned shortcut for entry " + slot + ". Empty by default. Use the in-game key button to assign it.");
                 int index = slot;
                 Bindings[slot].SettingChanged += (s, e) => Shortcuts[index] = BuildingShortcut.Parse(Bindings[index].Value);
                 Shortcuts[slot] = BuildingShortcut.Parse(Bindings[slot].Value);
             }
+            gameObject.AddComponent<BuildingSettings>();
             harmony = new Harmony(Id);
-            foreach (var type in new[] { typeof(ShowSettings), typeof(OpenSettings), typeof(ApplySettings), typeof(ResetSettings), typeof(NativeRebind),
+            foreach (var type in new[] { typeof(ApplySettings), typeof(CancelSettings), typeof(ResetSettings), typeof(NativeRebind),
                 typeof(VanillaBindings.Load), typeof(VanillaBindings.Snapshot), typeof(VanillaBindings.Label), typeof(CreateHotbar) })
                 harmony.CreateClassProcessor(type).Patch();
             if (Diagnostic)
@@ -111,37 +112,40 @@ namespace KingdomHotkeyCustomizer
             static void Postfix(GameUI __instance) => __instance.gameObject.AddComponent<BuildingHotbar>().Build(__instance);
         }
 
-        [HarmonyPatch(typeof(KeyBindingsUI), "OnEnable")]
-        static class OpenSettings { static void Prefix(KeyBindingsUI __instance) => SettingsFor(__instance).Begin(); }
-
-        [HarmonyPatch(typeof(KeyBindingsUI), nameof(KeyBindingsUI.RefreshBindings))]
-        static class ShowSettings
-        {
-            static void Postfix(KeyBindingsUI __instance, RectTransform ____rowParent, KeyBindingRow ____rowPrefab)
-                => SettingsFor(__instance).Build(____rowParent, ____rowPrefab);
-        }
-
         [HarmonyPatch(typeof(KeyBindingsUI), nameof(KeyBindingsUI.ApplyBindings))]
         static class ApplySettings
         {
-            static void Prefix(KeyBindingsUI __instance) { SettingsFor(__instance).Commit(); VanillaBindings.StripInteractions(); }
+            static void Prefix(KeyBindingsUI __instance)
+            {
+                VanillaBindings.StripInteractions();
+                BuildingSettings.Instance?.Commit();
+            }
             static void Postfix() => VanillaBindings.ApplySaved();
         }
 
+        [HarmonyPatch(typeof(KeyBindingsUI), nameof(KeyBindingsUI.CancelBindings))]
+        static class CancelSettings
+        {
+            static void Prefix() => BuildingSettings.Instance?.Cancel();
+        }
+
         [HarmonyPatch(typeof(KeyBindingsUI), nameof(KeyBindingsUI.ResetBindings))]
-        static class ResetSettings { static void Prefix(KeyBindingsUI __instance) => SettingsFor(__instance).ResetChoices(); }
+        static class ResetSettings
+        {
+            static void Postfix() => BuildingSettings.Instance?.PendingVanilla.Clear();
+        }
 
         [HarmonyPatch(typeof(KeyBindingRow), nameof(KeyBindingRow.OnPointerClick))]
         static class NativeRebind
         {
             static bool Prefix(KeyBindingRow __instance, UnityEngine.EventSystems.PointerEventData eventData, InputAction ____bindingRef, TMP_Text ____binding)
             {
-                if (eventData.button == UnityEngine.EventSystems.PointerEventData.InputButton.Left)
-                    SettingsFor(__instance.GetComponentInParent<KeyBindingsUI>()).ListenNative(____bindingRef, ____binding);
+                if (eventData.button == UnityEngine.EventSystems.PointerEventData.InputButton.Left && BuildingSettings.Instance != null)
+                    BuildingSettings.Instance.ListenNative(____bindingRef, ____binding);
                 return false;
             }
         }
 
-        internal static BuildingSettings SettingsFor(KeyBindingsUI ui) => ui.GetComponent<BuildingSettings>() ?? ui.gameObject.AddComponent<BuildingSettings>();
+        internal static BuildingSettings SettingsFor(KeyBindingsUI ui) => BuildingSettings.Instance;
     }
 }

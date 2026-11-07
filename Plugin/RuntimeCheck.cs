@@ -50,18 +50,21 @@ namespace KingdomHotkeyCustomizer
             Keyboard keyboard = null; Mouse mouse = null;
             KeyBindingsUI menu = null; BuildingSettings settings = null;
             BuildingHotbar hotbar = null;
+            string original = null;
+            OptionsUI options = null;
             try
             {
                 Check(GamePlayer.Current == null && !GameUI.Instance, "No normal kingdom loaded");
                 Check(!SaveGame.LoadLatestSave(), "Diagnostic blocks save loading");
                 Check(Bindings.All(b => b.Value == "") && Buildings.All(b => b.Value == ""), "Fresh installation has ten blank keys and building choices");
-                string original = GameInput.Asset.SaveBindingOverridesAsJson();
+                original = GameInput.Asset.SaveBindingOverridesAsJson();
                 GameInput.Asset.FindAction("Hotkey2", true).ApplyBindingOverride(0, "<Keyboard>/f8");
                 string customized = GameInput.Asset.SaveBindingOverridesAsJson();
-                MainMenuUI.Instance.ShowKeyBindings();
-                menu = Resources.FindObjectsOfTypeAll<KeyBindingsUI>().First(k => k.gameObject.activeInHierarchy);
-                AccessTools.Method(typeof(KeyBindingsUI), "Start").Invoke(menu, null);
-                settings = SettingsFor(menu);
+                MainMenuUI.Instance.ShowOptions();
+                options = Resources.FindObjectsOfTypeAll<OptionsUI>().First(o => o.gameObject.activeInHierarchy);
+                var configMenu = options.GetComponent<KingdomFoundation.FoundationConfigMenu>() ?? KingdomFoundation.FoundationConfigMenu.Attach(options);
+                configMenu.ShowModsTab(Id);
+                settings = BuildingSettings.Instance;
                 Check(GameInput.Asset.SaveBindingOverridesAsJson() == customized, "Opening mod settings preserves existing custom workspace bindings");
                 Check(settings.Dropdowns.Count == 10 && settings.KeyButtons.Count == 10, "Main menu displays ten key buttons and ten building dropdowns");
                 Check(settings.KeyButtons.All(b => b.GetComponentInChildren<TMP_Text>().text == "Unassigned"), "All ten key buttons start Unassigned");
@@ -83,20 +86,20 @@ namespace KingdomHotkeyCustomizer
                 Check(reload.Bind("Buildings", "Slot0", "").Value == "Mine" && reload.Bind("Hotkeys", "Slot0", "").Value == "Ctrl+F6", "Assignments persist in the mod configuration across reload");
                 Check(GameInput.Asset.SaveBindingOverridesAsJson() == customized, "Applying mod assignments leaves native workspace bindings unchanged");
                 settings.Begin(); settings.Pending[0] = "Manifold"; settings.PendingKeys[0] = "Alt+F7";
-                menu.CancelBindings();
-                MainMenuUI.Instance.ShowKeyBindings();
+                options.CancelOptions();
+                MainMenuUI.Instance.ShowOptions();
+                configMenu.ShowModsTab(Id);
                 Check(!settings.HotbarToggle.isOn, "Opening settings restores the saved visibility preference");
                 settings.HotbarToggle.isOn = true;
-                menu.CancelBindings(); MainMenuUI.Instance.ShowKeyBindings();
+                options.CancelOptions();
+                MainMenuUI.Instance.ShowOptions();
+                configMenu.ShowModsTab(Id);
                 Check(!settings.PendingShowHotbar && !ShowHotbar.Value, "Cancel discards hotbar checkbox edits");
                 Check(settings.Pending[0] == "Mine" && settings.PendingKeys[0] == "Ctrl+F6", "Cancel discards pending building and key edits");
-                menu.ResetBindings();
+                settings.ResetChoices();
                 Check(settings.Pending.All(s => s == "") && settings.PendingKeys.All(s => s == ""), "Reset clears all mod entries in the pending form");
                 Check(settings.HotbarToggle.isOn && !ShowHotbar.Value, "Reset restores Show Hotbar in the pending form only");
                 Check(Buildings[0].Value == "Mine" && Bindings[0].Value == "Ctrl+F6", "Reset remains reversible until Apply");
-                menu.CancelBindings();
-                GameInput.Asset.LoadBindingOverridesFromJson(original);
-                MainMenuUI.Instance.ShowKeyBindings();
                 keyboard = InputSystem.AddDevice<Keyboard>(); keyboard.MakeCurrent();
                 mouse = InputSystem.AddDevice<Mouse>(); mouse.MakeCurrent();
                 Keys(keyboard);
@@ -121,8 +124,7 @@ namespace KingdomHotkeyCustomizer
                 AccessTools.Method(typeof(BuildingSettings), "Update").Invoke(settings, null);
                 Check(settings.PendingKeys[1] == "", "Backspace clears an assigned shortcut");
                 Keys(keyboard);
-                settings.Begin(); menu.RefreshBindings();
-                ScrollToBottom(menu);
+                settings.Begin();
             }
             catch (Exception ex) { error = ex.ToString(); }
             // Newly cloned native dropdowns initialize their tween runner in Start.
@@ -137,6 +139,14 @@ namespace KingdomHotkeyCustomizer
                 Check(BuildingShortcut.Parse("bogus").Key == Key.None && BuildingShortcut.Parse("Ctrl+LeftCtrl").Key == Key.None, "Invalid or modifier-only config remains unassigned");
                 Check(((RectTransform)settings.Dropdowns[0].transform).anchorMax.x <= ((RectTransform)settings.KeyButtons[0].transform).anchorMin.x,
                     "Building dropdown is left of the key setter");
+                Capture(Path.Combine(directory, "hotkey-customizer-settings.png"));
+                options.CancelOptions();
+                GameInput.Asset.LoadBindingOverridesFromJson(original);
+                MainMenuUI.Instance.ShowKeyBindings();
+                menu = Resources.FindObjectsOfTypeAll<KeyBindingsUI>().First(k => k.gameObject.activeInHierarchy);
+                AccessTools.Method(typeof(KeyBindingsUI), "Start").Invoke(menu, null);
+                menu.RefreshBindings();
+                ScrollToBottom(menu);
                 var prefab = (KeyBindingRow)AccessTools.Field(typeof(KeyBindingsUI), "_rowPrefab").GetValue(menu);
                 var nativeText = (TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_binding").GetValue(prefab);
                 Check(settings.KeyButtons[0].GetComponentInChildren<TMP_Text>().font == nativeText.font
@@ -170,15 +180,13 @@ namespace KingdomHotkeyCustomizer
                 MainMenuUI.Instance.ShowKeyBindings();
                 CaptureNative(menu, "Hotkey9", keyboard, Key.Digit9); menu.ApplyBindings();
                 Check(VanillaBindings.Entry(GameInput.Controls.UI.Hotkey9).Value == "Digit9", "Vanilla single-key assignment still works");
-                MainMenuUI.Instance.ShowKeyBindings();
-                ScrollToCustomSection(menu, settings);
+                menu.CancelBindings();
+                MainMenuUI.Instance.ShowMainMenu();
             }
             catch (Exception ex) { error = ex.ToString(); }
             yield return new WaitForSecondsRealtime(.4f);
             if (error == null) try
             {
-                Capture(Path.Combine(directory, "hotkey-customizer-settings.png"));
-                menu.CancelBindings(); MainMenuUI.Instance.ShowMainMenu();
                 var player = GamePlayer.CreateNewPlayer();
                 player.AddTech("mine"); player.AddTech("manifold");
                 player.AddCurrency(Currency.Gold, 1000000000, false); player.AddCurrency(Currency.Medal, 1000000000, false);
@@ -306,15 +314,15 @@ namespace KingdomHotkeyCustomizer
                 input.DeactivateInputField(); buy.ToggleSearch(); GameUI.Instance.ToggleBuyMenu(false);
                 EventSystem.current.SetSelectedGameObject(null);
                 var ingame = Resources.FindObjectsOfTypeAll<InGameMenuUI>().First();
-                ingame.gameObject.SetActive(true); ingame.ShowKeyBindings();
-                var ingameKeys = ingame.GetComponentInChildren<KeyBindingsUI>();
-                AccessTools.Method(typeof(KeyBindingsUI), "Start").Invoke(ingameKeys, null);
-                var ingameSettings = SettingsFor(ingameKeys);
+                ingame.gameObject.SetActive(true); ingame.ShowOptions();
+                var ingameOptions = Resources.FindObjectsOfTypeAll<OptionsUI>().First(o => o.gameObject.activeInHierarchy);
+                var ingameConfigMenu = ingameOptions.GetComponent<KingdomFoundation.FoundationConfigMenu>() ?? KingdomFoundation.FoundationConfigMenu.Attach(ingameOptions);
+                ingameConfigMenu.ShowModsTab(Id);
+                var ingameSettings = SettingsFor(null);
                 hotbar.Refresh();
                 Check(!hotbar.Strip.gameObject.activeSelf, "Hotbar hides behind the pause settings");
                 Check(ingameSettings.Dropdowns.Count == 10 && ingameSettings.PendingKeys[0] == "Ctrl+F6", "Pause menu shares persisted building and key assignments");
                 Check(ingameSettings.SectionLabel && ingameSettings.HotbarToggle.isOn, "Pause settings include Custom Hotkeys and the saved Show Hotbar checkbox");
-                ScrollToCustomSection(ingameKeys, ingameSettings);
             }
             catch (Exception ex) { error = ex.ToString(); }
             yield return new WaitForSecondsRealtime(.3f);
@@ -322,14 +330,18 @@ namespace KingdomHotkeyCustomizer
             {
                 Capture(Path.Combine(directory, "hotkey-customizer-ingame-settings.png"));
                 var ingame = Resources.FindObjectsOfTypeAll<InGameMenuUI>().First();
-                var ingameKeys = ingame.GetComponentInChildren<KeyBindingsUI>();
-                var ingameSettings = SettingsFor(ingameKeys);
+                var ingameOptions = Resources.FindObjectsOfTypeAll<OptionsUI>().First(o => o.gameObject.activeInHierarchy);
+                var ingameConfigMenu = ingameOptions.GetComponent<KingdomFoundation.FoundationConfigMenu>() ?? KingdomFoundation.FoundationConfigMenu.Attach(ingameOptions);
+                var ingameSettings = SettingsFor(null);
                 ingameSettings.PendingKeys[0] = "Shift+F9";
-                ingameKeys.ApplyBindings();
+                ingameOptions.ApplyAndClose();
                 Check(Bindings[0].Value == "Shift+F9", "Native Apply button commits the mod's key assignment");
-                ingame.ShowKeyBindings(); ingameSettings.Listen(0);
+                ingame.ShowOptions();
+                ingameConfigMenu.ShowModsTab(Id);
+                ingameSettings.Listen(0);
                 ingameSettings.CancelListening();
                 Check(Bindings[0].Value == "Shift+F9", "Canceling capture preserves the saved key");
+                ingameOptions.CancelOptions();
                 ingame.DoResume();
                 harmony.UnpatchSelf();
                 Check(!Harmony.GetPatchInfo(AccessTools.Method(typeof(GameUI), nameof(GameUI.DoHotkey)))?.Owners.Contains(Id) ?? true,

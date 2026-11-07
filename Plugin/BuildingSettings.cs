@@ -1,15 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Assets.Behaviour.UI;
 using Assets.Behaviour.UI.MainMenu;
 using Assets.Source.Flow;
 using Assets.Source.Player;
 using Assets.Source.Util;
 using HarmonyLib;
+using KingdomFoundation.Api;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 using GameInput = Assets.Behaviour.Input.PlayerInput;
 
 namespace KingdomHotkeyCustomizer
@@ -32,74 +34,154 @@ namespace KingdomHotkeyCustomizer
         internal int Listening = -1;
         int listenFrame;
         internal List<string> Choices;
+        Color keyColor;
+
+        IModConfigSection configSection;
+        internal static BuildingSettings Instance { get; private set; }
+
+        void Awake()
+        {
+            Instance = this;
+            Begin();
+            RegisterModConfig();
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+        }
+
+        internal void RegisterModConfig()
+        {
+            configSection = FoundationApi.ModConfig.GetOrCreateSection(HotkeyCustomizerPlugin.Id, "Hotkey Customizer", "Configure custom building shortcuts (slots 0-9) and the building hotbar.");
+            configSection.ClearElements();
+
+            // Custom Element for all Hotkey Customizer settings
+            configSection.AddElement(new HotkeyConfigUIElement(this));
+            configSection.OnCommit += Commit;
+            configSection.OnCancel += Cancel;
+        }
 
         internal void Begin()
         {
             CancelListening();
-            PendingShowHotbar = HotkeyCustomizerPlugin.Instance.ShowHotbar.Value;
+            var plugin = HotkeyCustomizerPlugin.Instance;
+            PendingShowHotbar = plugin != null && plugin.ShowHotbar.Value;
             PendingVanilla.Clear();
-            foreach (var action in GameInput.RebindableKeys) PendingVanilla[action.name] = VanillaBindings.Entry(action).Value;
-            for (int digit = 0; digit < 10; digit++) {
-                Pending[digit] = HotkeyCustomizerPlugin.Instance.Buildings[digit].Value;
-                PendingKeys[digit] = HotkeyCustomizerPlugin.Instance.Bindings[digit].Value;
+            if (GameInput.RebindableKeys != null)
+            {
+                foreach (var action in GameInput.RebindableKeys)
+                    PendingVanilla[action.name] = VanillaBindings.Entry(action).Value;
+            }
+            for (int digit = 0; digit < 10; digit++)
+            {
+                Pending[digit] = plugin != null ? plugin.Buildings[digit].Value : "";
+                PendingKeys[digit] = plugin != null ? plugin.Bindings[digit].Value : "";
             }
         }
 
         internal void Commit()
         {
             var plugin = HotkeyCustomizerPlugin.Instance;
+            if (plugin == null) return;
+
             bool saveOnSet = plugin.Config.SaveOnConfigSet;
             plugin.Config.SaveOnConfigSet = false;
             CancelListening();
-            try { for (int digit = 0; digit < 10; digit++) {
-                plugin.Buildings[digit].Value = Pending[digit] ?? "";
-                plugin.Bindings[digit].Value = PendingKeys[digit] ?? "";
-            }
-                foreach (var action in GameInput.RebindableKeys) VanillaBindings.Entry(action).Value = PendingVanilla[action.name];
+            try
+            {
+                for (int digit = 0; digit < 10; digit++)
+                {
+                    plugin.Buildings[digit].Value = Pending[digit] ?? "";
+                    plugin.Bindings[digit].Value = PendingKeys[digit] ?? "";
+                }
+                foreach (var action in PendingVanilla.Keys.ToArray())
+                {
+                    var act = GameInput.Asset?.FindAction(action, false);
+                    if (act != null) VanillaBindings.Entry(act).Value = PendingVanilla[action];
+                }
                 plugin.ShowHotbar.Value = PendingShowHotbar;
             }
-            finally { plugin.Config.SaveOnConfigSet = saveOnSet; }
+            finally
+            {
+                plugin.Config.SaveOnConfigSet = saveOnSet;
+            }
             plugin.Config.Save();
+        }
+
+        internal void Cancel()
+        {
+            Begin();
+            RefreshUI();
         }
 
         internal void ResetChoices()
         {
             CancelListening();
             PendingShowHotbar = true;
-            for (int digit = 0; digit < 10; digit++) { Pending[digit] = ""; PendingKeys[digit] = ""; }
-            foreach (var name in PendingVanilla.Keys.ToArray()) PendingVanilla[name] = "";
+            for (int digit = 0; digit < 10; digit++)
+            {
+                Pending[digit] = "";
+                PendingKeys[digit] = "";
+            }
+            foreach (var name in PendingVanilla.Keys.ToArray())
+                PendingVanilla[name] = "";
+
+            RefreshUI();
         }
 
         void OnDisable() => CancelListening();
+
         internal void Listen(int slot)
         {
             CancelListening();
-            GetComponent<KeyBindingsUI>().SetListening(null);
-            Listening = slot; listenFrame = Time.frameCount;
-            KeyButtons[slot].GetComponentInChildren<TMP_Text>().text = "Press a key...";
-            KeyButtons[slot].GetComponentInChildren<TMP_Text>().color = Color.green;
+            Listening = slot;
+            listenFrame = Time.frameCount;
+            if (slot >= 0 && slot < KeyButtons.Count && KeyButtons[slot])
+            {
+                var label = KeyButtons[slot].GetComponentInChildren<TMP_Text>();
+                if (label)
+                {
+                    keyColor = label.color;
+                    label.text = "Press a key...";
+                    label.color = Color.green;
+                }
+            }
         }
+
         internal void ListenNative(InputAction action, TMP_Text label)
         {
             CancelListening();
-            GetComponent<KeyBindingsUI>().SetListening(null);
-            ListeningAction = action; nativeLabel = label; nativeText = label.text; nativeColor = label.color;
+            ListeningAction = action;
+            nativeLabel = label;
+            nativeText = label.text;
+            nativeColor = label.color;
             listenFrame = Time.frameCount;
-            label.text = "Press a key..."; label.color = Color.green;
+            label.text = "Press a key...";
+            label.color = Color.green;
         }
+
         internal void CancelListening()
         {
             if (Listening >= 0 && Listening < KeyButtons.Count && KeyButtons[Listening])
             {
                 var label = KeyButtons[Listening].GetComponentInChildren<TMP_Text>();
-                label.text = BuildingShortcut.Parse(PendingKeys[Listening]).Display;
-                label.color = keyColor;
+                if (label)
+                {
+                    label.text = BuildingShortcut.Parse(PendingKeys[Listening]).Display;
+                    label.color = keyColor != default ? keyColor : Color.white;
+                }
             }
-            if (nativeLabel) { nativeLabel.text = nativeText; nativeLabel.color = nativeColor; }
-            ListeningAction = null; nativeLabel = null;
+            if (nativeLabel)
+            {
+                nativeLabel.text = nativeText;
+                nativeLabel.color = nativeColor;
+            }
+            ListeningAction = null;
+            nativeLabel = null;
             Listening = -1;
         }
-        Color keyColor;
+
         void Update()
         {
             if ((Listening < 0 && ListeningAction == null) || Time.frameCount == listenFrame || Keyboard.current == null) return;
@@ -112,159 +194,200 @@ namespace KingdomHotkeyCustomizer
                     ? "" : BuildingShortcut.Capture(keyboard, key.keyCode).ToString();
                 if (ListeningAction != null)
                 {
-                    var action = ListeningAction; var label = nativeLabel;
+                    var action = ListeningAction;
+                    var label = nativeLabel;
                     PendingVanilla[action.name] = value == "" ? VanillaBindings.Unassigned : value;
                     VanillaBindings.Apply(action, PendingVanilla[action.name]);
-                    CancelListening(); label.text = BuildingShortcut.Parse(value).Display; return;
+                    CancelListening();
+                    label.text = BuildingShortcut.Parse(value).Display;
+                    return;
                 }
                 PendingKeys[Listening] = value;
-                CancelListening(); return;
+                if (Listening >= 0 && Listening < KeyButtons.Count && KeyButtons[Listening])
+                {
+                    var label = KeyButtons[Listening].GetComponentInChildren<TMP_Text>();
+                    if (label)
+                    {
+                        label.text = BuildingShortcut.Parse(value).Display;
+                        label.color = keyColor != default ? keyColor : Color.white;
+                    }
+                }
+                CancelListening();
+                return;
             }
         }
 
-        internal void Build(RectTransform parent, KeyBindingRow prefab)
+        internal void RefreshUI()
         {
-            CancelListening(); Dropdowns.Clear(); KeyButtons.Clear();
-            // The resolution dropdown is available in both menu scenes. Clone its
-            // complete native template, fonts, scrolling and pointer behavior.
-            var template = Resources.FindObjectsOfTypeAll<OptionsUI>()
-                .Where(o => o.gameObject.scene == gameObject.scene)
-                .Select(o => (TMP_Dropdown)AccessTools.Field(typeof(OptionsUI), "_resolutionsDropdown").GetValue(o))
-                .FirstOrDefault(d => d);
-            if (!template) throw new InvalidOperationException("Native options dropdown was not available.");
-            var options = Resources.FindObjectsOfTypeAll<OptionsUI>().First(o => o.gameObject.scene == gameObject.scene
-                && (TMP_Dropdown)AccessTools.Field(typeof(OptionsUI), "_resolutionsDropdown").GetValue(o) == template);
-            BuildSection(parent, prefab, options);
+            if (HotbarToggle) HotbarToggle.SetIsOnWithoutNotify(PendingShowHotbar);
+            for (int i = 0; i < 10; i++)
+            {
+                if (i < Dropdowns.Count && Dropdowns[i] != null && Choices != null)
+                {
+                    int idx = Math.Max(0, Choices.IndexOf(Pending[i] ?? ""));
+                    Dropdowns[i].SetValueWithoutNotify(idx);
+                    Dropdowns[i].RefreshShownValue();
+                }
+                if (i < KeyButtons.Count && KeyButtons[i] != null)
+                {
+                    var label = KeyButtons[i].GetComponentInChildren<TMP_Text>();
+                    if (label) label.text = BuildingShortcut.Parse(PendingKeys[i]).Display;
+                }
+            }
+        }
+
+        internal void BuildContent(IModConfigContext context)
+        {
+            Begin();
+            CancelListening();
+            Dropdowns.Clear();
+            KeyButtons.Clear();
+
+            // 1. Research notice if not unlocked
+            if (GamePlayer.Current != null && !HotkeyCustomizerPlugin.Unlocked)
+            {
+                context.Templates.CreateTextRow(context.Container, "Research Hotkey Customizer for free in Tech Tree > Mods.", false, out ResearchNotice);
+                if (ResearchNotice)
+                {
+                    ResearchNotice.color = new Color(1f, 0.85f, 0.4f);
+                    ResearchNotice.fontSize = 15;
+                }
+            }
+
+            // 2. Show Hotbar Toggle Row
+            context.Templates.CreateToggleRow(context.Container, "Show Hotbar", PendingShowHotbar, val => {
+                CancelListening();
+                PendingShowHotbar = val;
+            }, out HotbarToggle);
+
+            // 3. Section Header for Shortcuts
+            context.Templates.CreateTextRow(context.Container, "Custom Hotkeys", true, out SectionLabel);
+
+            // 4. Catalog choices
             var elements = BuildingCatalog.All()
                 .OrderBy(e => Translation.Translate(e.Label), StringComparer.CurrentCultureIgnoreCase).ToList();
             Choices = new List<string> { "" };
             Choices.AddRange(elements.Select(e => e.ElementType));
-            // Keep assignments from an absent companion mod instead of silently erasing them.
             Choices.AddRange(Pending.Where(id => !string.IsNullOrEmpty(id) && !Choices.Contains(id)).Distinct());
+
             var labels = new List<string> { "Unassigned" };
             labels.AddRange(elements.Select(e => Translation.Translate(e.Label)
                 + (GamePlayer.Current != null && !e.IsPurchaseable(GamePlayer.Current) ? " (locked)" : "")));
             labels.AddRange(Choices.Skip(elements.Count + 1).Select(id => id + " (unavailable)"));
 
+            // 5. Ten Building Rows (Building Dropdown + Key Button)
             for (int digit = 0; digit < 10; digit++)
             {
-                var clone = Instantiate(prefab, parent);
-                clone.name = "Building hotkey " + digit;
-                var label = (TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_label").GetValue(clone);
-                var binding = (TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_binding").GetValue(clone);
-                label.text = "Building " + digit;
-                label.rectTransform.anchorMin = new Vector2(0, 0); label.rectTransform.anchorMax = new Vector2(.20f, 1);
-                label.rectTransform.offsetMin = new Vector2(6, 0); label.rectTransform.offsetMax = Vector2.zero;
-                keyColor = binding.color;
-                var nativeButton = (Image)AccessTools.Field(typeof(KeyBindingRow), "_button").GetValue(clone);
-                var row = (RectTransform)clone.transform;
-                var buttonRect = (RectTransform)new GameObject("Assign key", typeof(RectTransform), typeof(Image), typeof(Button)).transform;
-                buttonRect.SetParent(row, false);
-                buttonRect.anchorMin = new Vector2(.68f, 0); buttonRect.anchorMax = new Vector2(1, 1);
-                buttonRect.offsetMin = Vector2.zero; buttonRect.offsetMax = Vector2.zero;
-                var buttonImage = buttonRect.GetComponent<Image>();
-                buttonImage.sprite = nativeButton.sprite; buttonImage.type = nativeButton.type;
-                buttonImage.color = new Color(0, 0, 0, .5f);
-                var keyButton = buttonRect.GetComponent<Button>(); keyButton.targetGraphic = buttonImage;
-                keyButton.transition = Selectable.Transition.None;
-                buttonRect.gameObject.AddComponent<NativeKeyHover>().Target = buttonImage;
-                var keyLabel = binding; keyLabel.transform.SetParent(buttonRect, false);
-                keyLabel.rectTransform.anchorMin = Vector2.zero; keyLabel.rectTransform.anchorMax = Vector2.one;
-                keyLabel.rectTransform.offsetMin = new Vector2(6, 0); keyLabel.rectTransform.offsetMax = new Vector2(-6, 0);
-                keyLabel.enableAutoSizing = true; keyLabel.fontSizeMin = 12; keyLabel.fontSizeMax = keyLabel.fontSize;
-                keyLabel.text = BuildingShortcut.Parse(PendingKeys[digit]).Display;
-                keyLabel.raycastTarget = false;
-                int slot = digit; keyButton.onClick.AddListener(() => Listen(slot)); KeyButtons.Add(keyButton);
-                var dropdown = Instantiate(template, row);
-                dropdown.name = "Building " + digit;
-                dropdown.onValueChanged = new TMP_Dropdown.DropdownEvent();
-                dropdown.navigation = new Navigation { mode = Navigation.Mode.None };
-                dropdown.ClearOptions(); dropdown.AddOptions(labels);
-                var rect = (RectTransform)dropdown.transform;
-                rect.anchorMin = new Vector2(.20f, 0); rect.anchorMax = new Vector2(.68f, 1);
-                rect.offsetMin = new Vector2(4, 3); rect.offsetMax = new Vector2(-4, -3);
-                // The game's row layout must ignore the nested dropdown's old preferred size.
-                var layout = dropdown.GetComponent<LayoutElement>(); if (layout) layout.ignoreLayout = true;
-                dropdown.captionText.font = label.font; dropdown.captionText.color = label.color;
-                dropdown.captionText.fontSize = label.fontSize;
-                dropdown.captionText.enableAutoSizing = true;
-                dropdown.captionText.fontSizeMin = 12; dropdown.captionText.fontSizeMax = label.fontSize;
-                dropdown.itemText.fontSize = 18;
-                dropdown.itemText.enableAutoSizing = true;
-                dropdown.itemText.fontSizeMin = 12; dropdown.itemText.fontSizeMax = 18;
-                dropdown.template.sizeDelta = new Vector2(dropdown.template.sizeDelta.x, 260);
-                dropdown.SetValueWithoutNotify(Math.Max(0, Choices.IndexOf(Pending[digit] ?? "")));
-                dropdown.RefreshShownValue();
-                dropdown.onValueChanged.AddListener(index => { CancelListening(); Pending[slot] = Choices[index]; });
-                dropdown.gameObject.SetActive(true);
-                // A building selector is a dropdown, so it must not run the cloned row's rebind listener.
-                DestroyImmediate(clone);
+                int slot = digit;
+                var row = context.Templates.CreateEmptyRow(context.Container, 54f);
+                row.name = "BuildingRow_" + slot;
+
+                // Slot Label
+                var labelObj = new GameObject("SlotLabel", typeof(RectTransform), typeof(TextMeshProUGUI));
+                labelObj.transform.SetParent(row.transform, false);
+                var lRect = (RectTransform)labelObj.transform;
+                lRect.anchorMin = new Vector2(0, 0);
+                lRect.anchorMax = new Vector2(0.20f, 1);
+                lRect.offsetMin = new Vector2(8, 0);
+                lRect.offsetMax = Vector2.zero;
+
+                var lText = labelObj.GetComponent<TextMeshProUGUI>();
+                lText.fontSize = 16;
+                lText.enableAutoSizing = true;
+                lText.fontSizeMin = 12;
+                lText.fontSizeMax = 18;
+                lText.alignment = TextAlignmentOptions.MidlineLeft;
+                lText.text = "Building " + slot;
+
+                // Dropdown in middle
+                context.Templates.CreateDropdownRow(row.transform, "", labels, Math.Max(0, Choices.IndexOf(Pending[slot] ?? "")), idx => {
+                    CancelListening();
+                    Pending[slot] = Choices[idx];
+                }, out var dropdown);
+                dropdown.name = "BuildingDropdown_" + slot;
+                var dRect = (RectTransform)dropdown.transform;
+                dRect.anchorMin = new Vector2(0.22f, 0.04f);
+                dRect.anchorMax = new Vector2(0.68f, 0.96f);
+                dRect.offsetMin = dRect.offsetMax = Vector2.zero;
                 Dropdowns.Add(dropdown);
+
+                // Key Button on right
+                context.Templates.CreateButtonRow(row.transform, "", BuildingShortcut.Parse(PendingKeys[slot]).Display, () => Listen(slot), out var keyBtn, out var keyLabel);
+                keyBtn.name = "KeyButton_" + slot;
+                var bRect = (RectTransform)keyBtn.transform;
+                bRect.anchorMin = new Vector2(0.70f, 0.04f);
+                bRect.anchorMax = new Vector2(0.98f, 0.96f);
+                bRect.offsetMin = bRect.offsetMax = Vector2.zero;
+                KeyButtons.Add(keyBtn);
+                keyBtn.gameObject.AddComponent<NativeKeyHover>().Target = keyBtn.GetComponent<Image>();
+                var kbRow = Resources.FindObjectsOfTypeAll<KeyBindingRow>().FirstOrDefault();
+                if (kbRow != null && keyLabel != null)
+                {
+                    var nativeBindingText = (TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_binding")?.GetValue(kbRow);
+                    if (nativeBindingText != null)
+                    {
+                        keyLabel.font = nativeBindingText.font;
+                        keyLabel.color = nativeBindingText.color;
+                    }
+                }
+                if (keyLabel)
+                {
+                    keyLabel.alignment = TextAlignmentOptions.Center;
+                    var klRect = keyLabel.rectTransform;
+                    klRect.anchorMin = Vector2.zero;
+                    klRect.anchorMax = Vector2.one;
+                    klRect.offsetMin = klRect.offsetMax = Vector2.zero;
+                    keyColor = keyLabel.color;
+                }
             }
-            // Preserve the game's scrolling layout and make every appended row reachable.
-            LayoutRebuilder.ForceRebuildLayoutImmediate(parent);
+
+            // 6. Reset button
+            var resetRow = context.Templates.CreateButtonRow(context.Container, "Defaults", "Reset All Shortcuts", () => {
+                ResetChoices();
+            }, out _, out _);
+            resetRow.name = "ResetRow";
         }
 
-        void BuildSection(RectTransform parent, KeyBindingRow prefab, OptionsUI options)
+        sealed class HotkeyConfigUIElement : IModConfigElement
         {
-            var heading = Instantiate(prefab, parent);
-            heading.name = "Custom Hotkeys section";
-            SectionLabel = (TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_label").GetValue(heading);
-            SectionLabel.text = "Custom Hotkeys";
-            SectionLabel.fontStyle = FontStyles.Bold;
-            SectionLabel.rectTransform.anchorMax = Vector2.one;
-            SectionLabel.rectTransform.offsetMin = new Vector2(6, 0);
-            SectionLabel.rectTransform.offsetMax = Vector2.zero;
-            ((TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_binding").GetValue(heading)).gameObject.SetActive(false);
-            var headingImage = (Image)AccessTools.Field(typeof(KeyBindingRow), "_button").GetValue(heading);
-            headingImage.enabled = false;
-            var headingLayout = heading.GetComponent<LayoutElement>() ?? heading.gameObject.AddComponent<LayoutElement>();
-            headingLayout.preferredHeight = 34; headingLayout.minHeight = 34;
-            DestroyImmediate(heading);
+            public string Id => "urakka.hotkeys.settings";
+            public bool IsVisible { get; set; } = true;
+            readonly BuildingSettings settings;
 
-            ResearchNotice = null;
-            if (GamePlayer.Current != null && !HotkeyCustomizerPlugin.Unlocked)
+            public HotkeyConfigUIElement(BuildingSettings settings)
             {
-                var notice = Instantiate(prefab, parent);
-                notice.name = "Hotkey Customizer research required";
-                ResearchNotice = (TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_label").GetValue(notice);
-                ResearchNotice.text = "Research Hotkey Customizer for free in Tech Tree > Mods.";
-                ResearchNotice.rectTransform.anchorMin = Vector2.zero; ResearchNotice.rectTransform.anchorMax = Vector2.one;
-                ResearchNotice.rectTransform.offsetMin = new Vector2(6, 0); ResearchNotice.rectTransform.offsetMax = new Vector2(-6, 0);
-                ResearchNotice.enableAutoSizing = true; ResearchNotice.fontSizeMin = 10; ResearchNotice.fontSizeMax = 14;
-                ResearchNotice.raycastTarget = false;
-                ((TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_binding").GetValue(notice)).gameObject.SetActive(false);
-                ((Image)AccessTools.Field(typeof(KeyBindingRow), "_button").GetValue(notice)).enabled = false;
-                DestroyImmediate(notice);
+                this.settings = settings;
             }
 
-            var row = Instantiate(prefab, parent);
-            row.name = "Show Hotbar";
-            var label = (TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_label").GetValue(row);
-            label.text = "Show Hotbar"; label.raycastTarget = false;
-            ((Image)AccessTools.Field(typeof(KeyBindingRow), "_button").GetValue(row)).enabled = false;
-            ((TMP_Text)AccessTools.Field(typeof(KeyBindingRow), "_binding").GetValue(row)).gameObject.SetActive(false);
-            var source = (Toggle)AccessTools.Field(typeof(OptionsUI), "_windowModeToggle").GetValue(options);
-            HotbarToggle = Instantiate(source, row.transform);
-            HotbarToggle.name = "Show Hotbar checkbox";
-            HotbarToggle.onValueChanged = new Toggle.ToggleEvent();
-            HotbarToggle.group = null;
-            HotbarToggle.navigation = new Navigation { mode = Navigation.Mode.None };
-            foreach (var text in HotbarToggle.GetComponentsInChildren<TMP_Text>(true)) text.gameObject.SetActive(false);
-            var rect = (RectTransform)HotbarToggle.transform;
-            rect.anchorMin = rect.anchorMax = new Vector2(.84f, .5f);
-            rect.pivot = new Vector2(.5f, .5f); rect.anchoredPosition = Vector2.zero;
-            rect.localScale = Vector3.one; rect.sizeDelta = new Vector2(24, 24);
-            var background = HotbarToggle.targetGraphic.rectTransform;
-            background.anchorMin = Vector2.zero; background.anchorMax = Vector2.one;
-            background.offsetMin = background.offsetMax = Vector2.zero;
-            var checkmark = HotbarToggle.graphic.rectTransform;
-            checkmark.anchorMin = Vector2.zero; checkmark.anchorMax = Vector2.one;
-            checkmark.offsetMin = checkmark.offsetMax = Vector2.zero;
-            HotbarToggle.SetIsOnWithoutNotify(PendingShowHotbar);
-            HotbarToggle.onValueChanged.AddListener(value => { CancelListening(); PendingShowHotbar = value; });
-            HotbarToggle.gameObject.SetActive(true);
-            DestroyImmediate(row);
+            public GameObject CreateView(IModConfigContext context)
+            {
+                var container = new GameObject("HotkeyCustomizerControls", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+                container.transform.SetParent(context.Container, false);
+                var vlg = container.GetComponent<VerticalLayoutGroup>();
+                vlg.spacing = 8;
+                vlg.childControlWidth = true;
+                vlg.childControlHeight = false;
+                vlg.childForceExpandWidth = true;
+                vlg.childForceExpandHeight = false;
+
+                var csf = container.GetComponent<ContentSizeFitter>();
+                csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+                var subContext = new SubContext((RectTransform)container.transform, context.Templates);
+                settings.BuildContent(subContext);
+                LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)container.transform);
+                return container;
+            }
+
+            public void Commit() => settings.Commit();
+            public void Cancel() => settings.Cancel();
+
+            sealed class SubContext : IModConfigContext
+            {
+                public RectTransform Container { get; }
+                public IModConfigTemplates Templates { get; }
+                public SubContext(RectTransform c, IModConfigTemplates t) { Container = c; Templates = t; }
+            }
         }
     }
 }
