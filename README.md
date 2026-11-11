@@ -1,51 +1,59 @@
 # Hotkey Customizer
 
-Customize vanilla shortcuts and set up ten building shortcuts with an optional vertical hotbar. All new building and key entries start **Unassigned**. Existing workspace shortcuts stay as assigned.
+[GitHub releases](https://github.com/urakkaamyx/KingdomInc_HotkeyCustomizer/releases) · [Nexus Mods](https://www.nexusmods.com/kingdominc/mods/16) · Version 1.4.0
 
-[Downloads](https://github.com/urakkaamyx/KingdomInc_HotkeyCustomizer/releases) · [Nexus Mods](https://www.nexusmods.com/kingdominc/mods/16)
+Vanilla key combinations, ten user-configurable building shortcuts, and a collapsible building hotbar for Kingdom Inc.
 
-## Research
+Add modifier combinations (Ctrl, Alt, Shift, Meta) to vanilla shortcuts, assign custom keys for your favorite buildings, and quickly place structures from a responsive edge hotbar.
 
-Open **Tech Tree > Mods > Hotkey Customizer** and research **Hotkey Customizer** for free to unlock building shortcuts and the hotbar in that kingdom. You can configure assignments before researching. Vanilla key combinations remain available.
+## Features
 
-## Key bindings
+- **Multi-Key Combinations:** Rebind vanilla shortcuts to combinations such as Ctrl + Shift + 1.
+- **Ten Custom Building Shortcuts:** Configure shortcuts for up to 10 specific buildings (Building 0–9) under Options > Key Bindings > Custom Hotkeys.
+- **Modifier Key Support:** Assign custom key chords with Ctrl, Alt, Shift, or Meta modifiers.
+- **Collapsible Edge Hotbar:** Access a responsive vertical hotbar at the right screen edge. Hover to reveal, move away to retract, or click icons for direct placement.
+- **Foundation Settings Integration:** Configure building hotkeys and hotbar toggle directly in-game via Options > Key Bindings or the Foundation Mods menu.
+- **Per-Kingdom Research Unlock:** Research Hotkey Customizer for free under Tech Tree > Mods to unlock building shortcuts and the hotbar in each kingdom.
 
-1. Open **Options > Key Bindings** or **Options > Mods > Hotkey Customizer** from the main menu or pause menu.
-2. Click a vanilla key field to change that shortcut. Under **Custom Hotkeys**, choose a building on the left and click its key field on the right.
-3. Hold any desired Ctrl, Alt, Shift or Windows/Meta modifiers, then press the final key. For example, **Ctrl + Shift + 1**. Left and right modifiers work interchangeably.
-4. Click **Apply & Close** to save. **Cancel** discards pending edits.
+## Usage and Controls
 
-During capture, **Backspace** or **Delete** clears the key; **Escape** cancels capture. **Reset to default** resets vanilla bindings, clears the ten custom building entries and restores Show Hotbar to enabled when applied.
+1. Research **Hotkey Customizer** in **Tech Tree > Mods** for free.
+2. Open **Options > Key Bindings**.
+3. **Vanilla Shortcuts:** Click any vanilla key field and press your desired key or combination with modifiers.
+4. **Building Shortcuts:** Scroll to **Custom Hotkeys (Building 0–9)**, select a building from the dropdown on the left, and assign a key combination on the right.
+5. Click **Apply** to save changes.
 
-Entry numbers 0–9 are labels, not assigned keys. Avoid overlaps with existing shortcuts. If custom entries share a shortcut, the lowest-numbered entry takes priority. Reassigned vanilla combinations require exactly the chosen modifiers.
+## Requirements
 
-## Hotbar
+- Kingdom Inc (Windows x64 Mono)
+- [BepInEx 5](https://github.com/BepInEx/BepInEx/releases/tag/v5.4.23.6) (5.4.23.6 or newer)
+- [Foundation](https://www.nexusmods.com/kingdominc/mods/18) (0.11.0 or newer)
 
-Enable **Show Hotbar** under **Custom Hotkeys**. Hover the bar's exposed edge on the right to reveal it; move away to retract it. Black tiles show building icons and small key labels. Building names appear in hover tooltips.
+## Installation
 
-Click an icon or press its assigned shortcut to open normal building placement. Buildings still require their own research and purchase cost. Locked icons are dimmed. Hiding the hotbar leaves keyboard shortcuts active. Placement shortcuts pause during menus, text entry, alerts and conflicting tools.
+1. Install BepInEx 5 for Kingdom Inc.
+2. Install Foundation (0.11.0 or newer).
+3. Extract the release ZIP into your Kingdom Inc game directory.
+4. Verify the file exists at `BepInEx/plugins/HotkeyCustomizer/HotkeyCustomizer.dll`.
+5. Launch the game and unlock Hotkey Customizer in Tech Tree > Mods!
 
-## Requirements and installation
+## Compatibility
 
-Requires the Windows Mono version of Kingdom Inc., BepInEx 5, and Foundation 0.5.0 or newer. Install these dependencies separately.
+| Class.Method | Hook Type | Impact |
+|---|---|---|
+| KeyBindingsUI.ApplyBindings | Harmony Postfix | Applies and saves custom modifier and building hotkey assignments. |
+| KeyBindingsUI.CancelBindings | Harmony Postfix | Discards unsaved custom hotkey modifications when cancelling the menu. |
+| GameUI.Start | Harmony Postfix | Creates and attaches the collapsible building hotbar to the game HUD. |
+| KeyBindingRow.OnPointerClick | Harmony Prefix | Intercepts native rebind clicks to capture modifier-enhanced multi-key chords. |
+| KeyBindingsUI.ResetBindings | Harmony Postfix | Resets pending custom hotkey bindings to their default values. |
+| KeyBindingRow._resetBindingText | Harmony Postfix | Formats key binding text labels to display modifier combinations cleanly. |
+| KeyBindingsUI.Apply | Harmony Postfix | Loads and activates persistent vanilla modifier overrides on game start. |
+| KeyBindingsUI.OnEnable | Harmony Postfix | Takes a snapshot of active bindings when the keybindings UI opens. |
 
-Close the game and extract the ZIP into the Kingdom Inc. installation folder. The plugin belongs at:
+## Removal
 
-`BepInEx/plugins/HotkeyCustomizer/HotkeyCustomizer.dll`
+Close the game and delete `BepInEx/plugins/HotkeyCustomizer/`.
 
-For updates, replace that DLL with the game closed. Existing assignments and Show Hotbar preferences are kept in `BepInEx/config/urakka.kingdominc.hotkeycustomizer.cfg`. Research is saved per kingdom.
+## Credits and Source
 
-To uninstall, close the game and remove the HotkeyCustomizer plugin folder. You can also remove its configuration file to discard assignments. Removing the plugin leaves reassigned vanilla combinations as ordinary bindings using their final key. Use the game's Reset to default option to restore defaults.
-
-## Changelog
-
-- **1.4.0**: Added Foundation ModConfig menu integration under Options > Mods tab.
-- **1.3.0**: Foundation tech research requirement.
-- **1.2.1**: Building hotbar integration.
-- **1.1.0**: Initial release.
-
-## Credits
-
-Created by Urakka. Kingdom Inc. and its artwork belong to their respective owners. The package contains no game assemblies or extracted artwork.
-
-Generative AI was used for code, documentation and promotional thumbnail artwork.
+Created by **Urakka** (rockyamyx). [Source code on GitHub](https://github.com/urakkaamyx/KingdomInc_HotkeyCustomizer). Game artwork belongs to its respective owners.
