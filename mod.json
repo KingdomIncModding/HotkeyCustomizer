@@ -6,9 +6,9 @@
   "description": "For Kingdom Inc game version 1.0.14. Vanilla key combinations, configurable building shortcuts, and registered hotkey sections with per-mod settings.",
   "repository": {
     "platform": "GitHub",
-    "owner": "urakkaamyx",
+    "owner": "KingdomIncModding",
     "name": "KingdomInc_HotkeyCustomizer",
-    "url": "https://github.com/urakkaamyx/KingdomInc_HotkeyCustomizer",
+    "url": "https://github.com/KingdomIncModding/KingdomInc_HotkeyCustomizer",
     "branch": "main",
     "visibility": "public",
     "topics": [
@@ -65,7 +65,7 @@
     "gameIntegration": "Foundation"
   },
   "publishing": {
-    "githubReleases": "https://github.com/urakkaamyx/KingdomInc_HotkeyCustomizer/releases/tag/v1.4.0",
+    "githubReleases": "https://github.com/KingdomIncModding/KingdomInc_HotkeyCustomizer/releases/tag/v1.4.0",
     "nexusMods": "https://www.nexusmods.com/kingdominc/mods/16",
     "archivePreviousReleases": false
   }
