@@ -7,8 +7,8 @@
   "repository": {
     "platform": "GitHub",
     "owner": "KingdomIncModding",
-    "name": "KingdomInc_HotkeyCustomizer",
-    "url": "https://github.com/KingdomIncModding/KingdomInc_HotkeyCustomizer",
+    "name": "HotkeyCustomizer",
+    "url": "https://github.com/KingdomIncModding/HotkeyCustomizer",
     "branch": "main",
     "visibility": "public",
     "topics": [
@@ -65,7 +65,7 @@
     "gameIntegration": "Foundation"
   },
   "publishing": {
-    "githubReleases": "https://github.com/KingdomIncModding/KingdomInc_HotkeyCustomizer/releases/tag/v1.4.0",
+    "githubReleases": "https://github.com/KingdomIncModding/HotkeyCustomizer/releases/tag/v1.4.0",
     "nexusMods": "https://www.nexusmods.com/kingdominc/mods/16",
     "archivePreviousReleases": false
   }

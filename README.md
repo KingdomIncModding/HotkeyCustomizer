@@ -2,7 +2,7 @@
 
 **Current release: 1.5.1 — for Kingdom Inc game version 1.0.14.**
 
-[GitHub releases](https://github.com/KingdomIncModding/KingdomInc_HotkeyCustomizer/releases) · [Nexus Mods](https://www.nexusmods.com/kingdominc/mods/16) · Version 1.5.1
+[GitHub releases](https://github.com/KingdomIncModding/HotkeyCustomizer/releases) · [Nexus Mods](https://www.nexusmods.com/kingdominc/mods/16) · Version 1.5.1
 
 Vanilla key combinations, ten user-configurable building shortcuts, and a collapsible building hotbar for Kingdom Inc.
 
@@ -64,4 +64,4 @@ Close the game and delete `BepInEx/plugins/HotkeyCustomizer/`.
 
 ## Credits and Source
 
-Created by **Urakka** (rockyamyx). [Source code on GitHub](https://github.com/KingdomIncModding/KingdomInc_HotkeyCustomizer). Game artwork belongs to its respective owners.
+Created by **Urakka** (rockyamyx). [Source code on GitHub](https://github.com/KingdomIncModding/HotkeyCustomizer). Game artwork belongs to its respective owners.
