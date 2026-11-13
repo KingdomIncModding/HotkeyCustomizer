@@ -20,3 +20,7 @@ obj/
 **/obj/
 .env
 .env.*
+
+/Release/
+
+/Debug/

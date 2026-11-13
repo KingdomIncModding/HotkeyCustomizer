@@ -1,15 +1,15 @@
-using Assets.Behaviour.UI;
-using Assets.Behaviour.UI.MainMenu;
-using HarmonyLib;
+using KingdomFoundation.Api;
 using TMPro;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 namespace KingdomHotkeyCustomizer
 {
-    [HarmonyPatch(typeof(GameUI), "Start")]
-    internal static partial class CreateHotbarPatch
+    internal static class CreateHotbarPatch
     {
-
+        internal static void Postfix(UnityEngine.Component __instance)
+        {
+            __instance.gameObject.AddComponent<BuildingHotbar>().Build(__instance);
+        }
     }
 }

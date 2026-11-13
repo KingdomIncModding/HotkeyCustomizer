@@ -1,15 +1,12 @@
-using Assets.Behaviour.UI;
-using Assets.Behaviour.UI.MainMenu;
-using HarmonyLib;
+using KingdomFoundation.Api;
 using TMPro;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
 namespace KingdomHotkeyCustomizer
 {
-    [HarmonyPatch(typeof(KeyBindingsUI), nameof(KeyBindingsUI.ResetBindings))]
-    internal static partial class ResetSettingsPatch
+    internal static class ResetSettingsPatch
     {
-
+        internal static void Postfix() => BuildingSettings.Instance?.PendingVanilla.Clear();
     }
 }
