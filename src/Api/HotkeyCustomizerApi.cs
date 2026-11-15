@@ -79,14 +79,20 @@ namespace KingdomHotkeyCustomizer.Api
 
         internal static void Update()
         {
+            Update(null, null);
+        }
+
+        internal static void Update(HashSet<BuildingShortcut> consumed, Func<bool> canDispatch)
+        {
             var current = snapshot;
             foreach (var section in current)
                 section.Refresh();
             var keyboard = Keyboard.current;
-            if (keyboard == null || !HotkeyCustomizerPlugin.CanUseGameplayHotkeys())
+            if (keyboard == null)
                 return;
+            Func<bool> guard = canDispatch ?? HotkeyCustomizerPlugin.CanUseGameplayHotkeys;
             foreach (var section in current)
-                section.Dispatch(keyboard);
+                section.Dispatch(keyboard, consumed, guard);
         }
     }
 }

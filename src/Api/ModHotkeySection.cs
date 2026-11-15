@@ -126,6 +126,11 @@ namespace KingdomHotkeyCustomizer.Api
         private int lastDispatchFrame = -1;
         internal void Dispatch(Keyboard keyboard)
         {
+            Dispatch(keyboard, null, HotkeyCustomizerPlugin.CanUseGameplayHotkeys);
+        }
+
+        internal void Dispatch(Keyboard keyboard, HashSet<BuildingShortcut> consumed, Func<bool> canDispatch)
+        {
             if (!IsRegistered || lastDispatchFrame == Time.frameCount)
                 return;
             lastDispatchFrame = Time.frameCount;
@@ -135,10 +140,15 @@ namespace KingdomHotkeyCustomizer.Api
                     break;
                 if (!key.IsRegistered || key.OnPressed == null || !key.Shortcut.Pressed(keyboard))
                     continue;
+                if (consumed != null && consumed.Contains(key.Shortcut))
+                    continue;
+                if (canDispatch != null && !canDispatch())
+                    break;
                 try
                 {
                     if (key.CanExecute != null && !key.CanExecute())
                         continue;
+                    consumed?.Add(key.Shortcut);
                     key.OnPressed();
                 }
                 catch (Exception error)

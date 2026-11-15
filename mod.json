@@ -1,7 +1,7 @@
 {
   "id": "HotkeyCustomizer",
   "name": "Hotkey Customizer",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "author": "Urakka",
   "description": "For Kingdom Inc game version 1.0.14. Vanilla key combinations, configurable building shortcuts, and registered hotkey sections with per-mod settings.",
   "repository": {
@@ -20,7 +20,7 @@
       "quality-of-life",
       "user-interface"
     ],
-    "latestTag": "v1.4.0"
+    "latestTag": "v1.5.1"
   },
   "distribution": {
     "nexus": {
@@ -32,8 +32,9 @@
         {
           "name": "Foundation",
           "url": "https://www.nexusmods.com/kingdominc/mods/18",
-          "minimumVersion": "0.14.0",
-          "type": "nexus"
+          "minimumVersion": "0.14.4",
+          "type": "nexus",
+          "fileId": 8358756
         },
         {
           "name": "BepInEx 5",
@@ -60,12 +61,12 @@
     "target": "netstandard2.1",
     "dependencies": [
       "BepInEx 5",
-      "Foundation 0.14.0"
+      "Foundation 0.14.4"
     ],
     "gameIntegration": "Foundation"
   },
   "publishing": {
-    "githubReleases": "https://github.com/KingdomIncModding/HotkeyCustomizer/releases/tag/v1.4.0",
+    "githubReleases": "https://github.com/KingdomIncModding/HotkeyCustomizer/releases/tag/v1.5.1",
     "nexusMods": "https://www.nexusmods.com/kingdominc/mods/16",
     "archivePreviousReleases": false
   }

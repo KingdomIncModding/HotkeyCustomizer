@@ -7,11 +7,12 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 namespace KingdomHotkeyCustomizer
 {
     [BepInPlugin(Id, "Hotkey Customizer", Version)]
-    [BepInDependency("urakka.kingdominc.foundation", "0.14.0")]
+    [BepInDependency("urakka.kingdominc.foundation", "0.14.4")]
     public sealed class HotkeyCustomizerPlugin : BaseUnityPlugin
     {
         private void Awake()
@@ -49,15 +50,16 @@ namespace KingdomHotkeyCustomizer
             if (ModHotkeyCapture.Instance?.IsListening == true || BuildingSettings.Instance?.Listening >= 0 || BuildingSettings.Instance?.ListeningAction != null)
                 return false;
             var selected = EventSystem.current ? EventSystem.current.currentSelectedGameObject : null;
-            if (selected && (selected.GetComponentInParent<TMP_InputField>() || selected.GetComponentInParent<TMP_Dropdown>()))
+            if (selected && (selected.GetComponentInParent<TMP_InputField>() || selected.GetComponentInParent<TMP_Dropdown>() || selected.GetComponentInParent<InputField>() || selected.GetComponentInParent<Dropdown>()))
                 return false;
             if (FoundationApi.UiAccess.HasPopup || FoundationApi.UiAccess.IsMenuOpen(GameMenu.Research) || FoundationApi.UiAccess.IsMenuOpen(GameMenu.Clone) || FoundationApi.UiAccess.IsMenuOpen(GameMenu.AreaMove))
                 return false;
-            return !global::UnityEngine.Object.FindObjectsByType<TMP_InputField>(FindObjectsSortMode.None).Any(field => field.isFocused);
+            return !global::UnityEngine.Object.FindObjectsByType<TMP_InputField>(FindObjectsSortMode.None).Any(field => field.isFocused)
+                && !global::UnityEngine.Object.FindObjectsByType<InputField>(FindObjectsSortMode.None).Any(field => field.isFocused);
         }
 
         public const string Id = "urakka.kingdominc.hotkeycustomizer";
-        public const string Version = "1.5.1";
+        public const string Version = "1.5.2";
         public const string ResearchId = Id + ".unlock";
         internal static HotkeyCustomizerPlugin Instance;
         private FoundationModContext foundation;
@@ -107,10 +109,35 @@ namespace KingdomHotkeyCustomizer
             hooks.Clear();
         }
 
+        private readonly System.Collections.Generic.HashSet<BuildingShortcut> frameConsumedChords = new System.Collections.Generic.HashSet<BuildingShortcut>();
+        private int lastCanUseHotkeysFrame = -1;
+        private bool lastCanUseHotkeysResult;
+
+        private bool CanDispatchHotkeysThisFrame()
+        {
+            int frame = Time.frameCount;
+            if (lastCanUseHotkeysFrame != frame)
+            {
+                lastCanUseHotkeysFrame = frame;
+                lastCanUseHotkeysResult = CanUseGameplayHotkeys();
+            }
+
+            return lastCanUseHotkeysResult;
+        }
+
         private void OnDestroy()
         {
             Api.HotkeyCustomizerApi.Shutdown();
             DisposeHooks();
+            VanillaBindings.Restore();
+            foreach (var hotbar in global::UnityEngine.Object.FindObjectsByType<BuildingHotbar>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                Destroy(hotbar);
+            var settings = GetComponent<BuildingSettings>();
+            if (settings)
+                Destroy(settings);
+            var capture = GetComponent<ModHotkeyCapture>();
+            if (capture)
+                Destroy(capture);
             foundation?.Dispose();
             if (Instance == this)
                 Instance = null;
@@ -144,16 +171,25 @@ namespace KingdomHotkeyCustomizer
         internal IModConfigSection SettingsSection() => foundation.Settings("Hotkey Customizer", "Configure building shortcuts (slots 0-9) and the building hotbar.");
         private void Update()
         {
-            Api.HotkeyCustomizerApi.Update();
             var keyboard = Keyboard.current;
+            if (VanillaBindings.PendingApply && keyboard != null)
+                VanillaBindings.ApplySaved();
+
+            frameConsumedChords.Clear();
+            Api.HotkeyCustomizerApi.Update(frameConsumedChords, CanDispatchHotkeysThisFrame);
             if (keyboard == null || ModHotkeyCapture.Instance?.IsListening == true || BuildingSettings.Instance?.Listening >= 0 || BuildingSettings.Instance?.ListeningAction != null)
                 return;
             for (int slot = 0; slot < 10; slot++)
-                if (Shortcuts[slot].Pressed(keyboard))
-                {
-                    SelectBuilding(slot);
+            {
+                var shortcut = Shortcuts[slot];
+                if (!shortcut.Pressed(keyboard) || frameConsumedChords.Contains(shortcut))
+                    continue;
+                if (!Unlocked || !CanDispatchHotkeysThisFrame())
                     break;
-                }
+                frameConsumedChords.Add(shortcut);
+                SelectBuilding(slot);
+                break;
+            }
         }
     }
 }
