@@ -451,24 +451,43 @@ namespace HotkeyCustomizerConsumerSmoke
                 EventSystem.current.SetSelectedGameObject(null);
                 Keys();
                 fault = HotkeyCustomizerApi.Register("smoke.hotkeys.fault", "Fault consumer", new ConfigFile(Path.Combine(directory, "fault.cfg"), true));
+                fault.Add("SameChord", "Same chord suppressed by first claim", () => fault.Dispose(), "Ctrl+F6");
                 fault.Add("Throw", "Faulty handler", () =>
                 {
                     throw new InvalidOperationException("Expected consumer failure");
-                }, "Ctrl+F6");
+                }, "Ctrl+F7");
             };
             yield return () => Keys(Key.LeftCtrl, Key.F6);
             yield return () =>
             {
-                Check(alphaCalls == 3 && errors.Count == 0, "A failing consumer callback does not interrupt other consumers");
+                Check(alphaCalls == 3 && fault.IsRegistered && errors.Count == 0, "Shared shortcut claims once without activating second consumer");
+                Keys();
+            };
+            yield return () => Keys(Key.LeftCtrl, Key.F7);
+            yield return () =>
+            {
+                Check(alphaCalls == 3 && errors.Count == 0, "A failing consumer callback produces no Unity errors");
+                Keys();
+            };
+            yield return () => Keys(Key.LeftCtrl, Key.F6);
+            yield return () =>
+            {
+                Check(alphaCalls == 4 && errors.Count == 0, "A failing consumer callback does not interrupt other consumers");
                 fault.Dispose();
                 Keys();
                 fault = HotkeyCustomizerApi.Register("smoke.hotkeys.once", "One-shot consumer", new ConfigFile(Path.Combine(directory, "once.cfg"), true));
-                fault.Add("Once", "Dispose during callback", () => fault.Dispose(), "Ctrl+F6");
+                fault.Add("Once", "Dispose during callback", () => fault.Dispose(), "Ctrl+F7");
+            };
+            yield return () => Keys(Key.LeftCtrl, Key.F7);
+            yield return () =>
+            {
+                Check(!fault.IsRegistered, "A consumer can unregister inside its callback safely");
+                Keys();
             };
             yield return () => Keys(Key.LeftCtrl, Key.F6);
             yield return () =>
             {
-                Check(alphaCalls == 4 && !fault.IsRegistered, "A consumer can unregister inside its callback safely");
+                Check(alphaCalls == 5, "Surviving consumer continues firing after another unregisters in callback");
                 Keys();
             };
             yield return () =>
